@@ -1,7 +1,12 @@
 [package]
-name = "matrices"
-version = "0.1.0"
-edition = "2021"
+name = "matrixes"
+description = "Implementation of matrices up to and slightly beyond a highschool level. See readme for details."
+version = "1.0.0"
+readme = "README.md"
+repository = "https://github.com/TheKnightGawain/matrixes/"
+licence = "MIT"
+keywords = ["matrix", "matrices", "math", "maths", "linear-algebra"]
+categories = ["data-structures", "mathematics"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
