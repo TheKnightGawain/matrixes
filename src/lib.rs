@@ -3,7 +3,7 @@ extern crate num;
 use num::{One, Zero};
 use std::{
     fmt::Debug,
-    ops::{Add, Mul, Neg, Range, Sub},
+    ops::{Add, Mul, Neg, Range, Sub, Div},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -644,7 +644,7 @@ where
 
     pub fn inverse(&self) -> Result<Self, (usize, usize)>
 	where
-	T: Neg<Output = T> + Mul<Output = T> + Zero
+	T: Neg<Output = T> + Mul<Output = T> + Zero + One + Div<Output = T>
 	{
         if self.rows != self.columns {
             return Err((self.rows, self.columns));
@@ -655,7 +655,7 @@ where
             Err(e) => return Err(e),
         };
 
-        out.scale(match self.determinant() {
+        out.scale(T::one() / match self.determinant() {
             Ok(d) => d,
             Err(e) => return Err(e),
         });
