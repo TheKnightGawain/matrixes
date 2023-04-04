@@ -1,3 +1,5 @@
+extern crate num;
+
 use num::{One, Zero};
 use std::{
     fmt::Debug,
