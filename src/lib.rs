@@ -120,6 +120,10 @@ impl<T> Matrix<T>
 where
     T: Copy,
 {
+	pub fn data(&self) -> Vec<T> {
+		self.data
+	}
+
     pub fn rows(&self) -> usize {
         self.rows
     }

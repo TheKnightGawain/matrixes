@@ -1,7 +1,7 @@
 [package]
 name = "matrixes"
 description = "Implementation of matrices up to and slightly beyond a highschool level. See readme for details."
-version = "1.2.0"
+version = "1.3.0"
 readme = "README.md"
 repository = "https://github.com/TheKnightGawain/matrixes/"
 license = "MIT"
