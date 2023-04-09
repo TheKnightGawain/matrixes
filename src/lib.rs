@@ -121,7 +121,7 @@ where
     T: Copy,
 {
 	pub fn data(&self) -> Vec<T> {
-		self.data
+		self.data.clone()
 	}
 
     pub fn rows(&self) -> usize {
@@ -889,6 +889,21 @@ mod tests {
 
     mod getters {
         use super::*;
+
+		mod data {
+			use super::*;
+
+			#[test]
+			fn correct_data() {
+				let m = Matrix::new_from_data(&vec![
+					vec![0, 1, 2, 3],
+					vec![10, 11, 12, 13],
+					vec![20, 21, 22, 23]
+				]).unwrap();
+
+				assert_eq!(m.data(), m.data);
+			}
+		}
 
         mod rows {
             use super::*;
