@@ -3,7 +3,7 @@ extern crate num;
 use num::{One, Zero};
 use std::{
     fmt::Debug,
-    ops::{Add, Mul, Neg, Range, Sub, Div},
+    ops::{Add, Div, Mul, Neg, Range, Sub},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -120,9 +120,9 @@ impl<T> Matrix<T>
 where
     T: Copy,
 {
-	pub fn data(&self) -> Vec<T> {
-		self.data.clone()
-	}
+    pub fn data(&self) -> Vec<T> {
+        self.data.clone()
+    }
 
     pub fn rows(&self) -> usize {
         self.rows
@@ -142,12 +142,12 @@ where
             .collect())
     }
 
-    pub fn get_rows(&self, range: &Range<usize>) -> Result<Vec<Vec<T>>, usize> {
+    pub fn get_rows(&self, range: Range<usize>) -> Result<Vec<Vec<T>>, usize> {
         if range.end > self.rows {
             return Err(range.end);
         }
 
-        Ok(range.to_owned().map(|r| self.get_row(&r).unwrap()).collect())
+        Ok(range.map(|r| self.get_row(&r).unwrap()).collect())
     }
 
     pub fn get_column(&self, i: &usize) -> Result<Vec<T>, usize> {
@@ -160,12 +160,12 @@ where
             .collect())
     }
 
-    pub fn get_columns(&self, range: &Range<usize>) -> Result<Vec<Vec<T>>, usize> {
+    pub fn get_columns(&self, range: Range<usize>) -> Result<Vec<Vec<T>>, usize> {
         if range.end > self.columns {
             return Err(range.end);
         }
 
-        Ok(range.to_owned().map(|c| self.get_column(&c).unwrap()).collect())
+        Ok(range.map(|c| self.get_column(&c).unwrap()).collect())
     }
 
     pub fn get_element(&self, element: (&usize, &usize)) -> Result<T, usize> {
@@ -186,7 +186,11 @@ impl<T> Matrix<T>
 where
     T: Copy,
 {
-    pub fn set_element(&mut self, element: (&usize, &usize), value: &T) -> Result<&mut Self, usize> {
+    pub fn set_element(
+        &mut self,
+        element: (&usize, &usize),
+        value: &T,
+    ) -> Result<&mut Self, usize> {
         if *element.0 >= self.rows {
             return Err(*element.0);
         }
@@ -236,11 +240,7 @@ where
         Ok(self)
     }
 
-    pub fn set_column(
-        &mut self,
-        column: &usize,
-        values: &Vec<T>,
-    ) -> Result<&mut Self, usize> {
+    pub fn set_column(&mut self, column: &usize, values: &Vec<T>) -> Result<&mut Self, usize> {
         if *column >= self.columns {
             return Err(*column);
         }
@@ -416,7 +416,12 @@ where
         }
     }
 
-    pub fn add_scaled_row(&mut self, from: &usize, to: &usize, factor: &T) -> Result<&mut Self, usize>
+    pub fn add_scaled_row(
+        &mut self,
+        from: &usize,
+        to: &usize,
+        factor: &T,
+    ) -> Result<&mut Self, usize>
     where
         T: Add<Output = T>,
     {
@@ -520,13 +525,13 @@ where
     T: Copy,
 {
     pub fn transpose(&self) -> Self {
-        Matrix::new_from_data(&self.get_columns(&(0..self.columns)).unwrap()).unwrap()
+        Matrix::new_from_data(&self.get_columns(0..self.columns).unwrap()).unwrap()
     }
 
     pub fn minor(&self, element: (&usize, &usize)) -> Result<T, (usize, usize)>
-	where
-	T: Neg<Output = T> + Mul<Output = T> + Zero
-	{
+    where
+        T: Neg<Output = T> + Mul<Output = T> + Zero,
+    {
         if self.rows != self.columns {
             return Err((self.rows, self.columns));
         }
@@ -537,7 +542,7 @@ where
 
         let mut data: Vec<Vec<T>> = Vec::new();
 
-        for r in self.get_rows(&(0..*element.0)).unwrap() {
+        for r in self.get_rows(0..*element.0).unwrap() {
             data.push({
                 let left_slice = &r[..*element.1];
                 let right_slice = &r[element.1 + 1..];
@@ -547,7 +552,7 @@ where
             });
         }
 
-        for r in self.get_rows(&(element.0 + 1..self.rows)).unwrap() {
+        for r in self.get_rows(element.0 + 1..self.rows).unwrap() {
             data.push({
                 let left_slice = &r[..*element.1];
                 let right_slice = &r[element.1 + 1..];
@@ -564,9 +569,9 @@ where
     }
 
     pub fn minor_matrix(&self) -> Result<Self, (usize, usize)>
-	where
-	T: Neg<Output = T> + Mul<Output = T> + Zero
-	{
+    where
+        T: Neg<Output = T> + Mul<Output = T> + Zero,
+    {
         if self.rows != self.columns {
             return Err((self.rows, self.columns));
         }
@@ -589,11 +594,12 @@ where
     }
 
     pub fn cofactor(&self) -> Self
-	where
-	T: Neg<Output = T>
-	{
+    where
+        T: Neg<Output = T>,
+    {
         Matrix::new_from_data(
-            &self.get_rows(&(0..self.rows))
+            &self
+                .get_rows(0..self.rows)
                 .unwrap()
                 .iter()
                 .enumerate()
@@ -609,9 +615,9 @@ where
     }
 
     pub fn adjoint(&self) -> Result<Self, (usize, usize)>
-	where
-	T: Neg<Output = T> + Mul<Output = T> + Zero
-	{
+    where
+        T: Neg<Output = T> + Mul<Output = T> + Zero,
+    {
         if self.rows != self.columns {
             return Err((self.rows, self.columns));
         }
@@ -624,9 +630,9 @@ where
     }
 
     pub fn determinant(&self) -> Result<T, (usize, usize)>
-	where
-	T: Neg<Output = T> + Mul<Output = T> + Zero
-	{
+    where
+        T: Neg<Output = T> + Mul<Output = T> + Zero,
+    {
         if self.rows != self.columns {
             return Err((self.rows, self.columns));
         }
@@ -647,9 +653,9 @@ where
     }
 
     pub fn inverse(&self) -> Result<Self, (usize, usize)>
-	where
-	T: Neg<Output = T> + Mul<Output = T> + Zero + One + Div<Output = T>
-	{
+    where
+        T: Neg<Output = T> + Mul<Output = T> + Zero + One + Div<Output = T>,
+    {
         if self.rows != self.columns {
             return Err((self.rows, self.columns));
         }
@@ -659,10 +665,13 @@ where
             Err(e) => return Err(e),
         };
 
-        out.scale(&(T::one() / match self.determinant() {
-            Ok(d) => d,
-            Err(e) => return Err(e),
-        }));
+        out.scale(
+            &(T::one()
+                / match self.determinant() {
+                    Ok(d) => d,
+                    Err(e) => return Err(e),
+                }),
+        );
 
         Ok(out)
     }
@@ -890,20 +899,21 @@ mod tests {
     mod getters {
         use super::*;
 
-		mod data {
-			use super::*;
+        mod data {
+            use super::*;
 
-			#[test]
-			fn correct_data() {
-				let m = Matrix::new_from_data(&vec![
-					vec![0, 1, 2, 3],
-					vec![10, 11, 12, 13],
-					vec![20, 21, 22, 23]
-				]).unwrap();
+            #[test]
+            fn correct_data() {
+                let m = Matrix::new_from_data(&vec![
+                    vec![0, 1, 2, 3],
+                    vec![10, 11, 12, 13],
+                    vec![20, 21, 22, 23],
+                ])
+                .unwrap();
 
-				assert_eq!(m.data(), m.data);
-			}
-		}
+                assert_eq!(m.data(), m.data);
+            }
+        }
 
         mod rows {
             use super::*;
@@ -989,7 +999,7 @@ mod tests {
                     Matrix::new_from_data(&vec![vec![0, 1, 2], vec![10, 11, 12], vec![20, 21, 22]])
                         .unwrap();
 
-                assert_eq!(m.get_rows(&(1..1)).unwrap(), Vec::<Vec<u8>>::new());
+                assert_eq!(m.get_rows(1..1), Ok(Vec::<Vec<u8>>::new()));
             }
 
             #[test]
@@ -998,7 +1008,7 @@ mod tests {
                     Matrix::new_from_data(&vec![vec![0, 1, 2], vec![10, 11, 12], vec![20, 21, 22]])
                         .unwrap();
 
-                assert_eq!(m.get_rows(&(2..4)), Err(4));
+                assert_eq!(m.get_rows(2..4), Err(4));
             }
 
             #[test]
@@ -1008,7 +1018,7 @@ mod tests {
                         .unwrap();
 
                 assert_eq!(
-                    m.get_rows(&(1..3)).unwrap(),
+                    m.get_rows(1..3).unwrap(),
                     vec![vec![10, 11, 12], vec![20, 21, 22]]
                 )
             }
@@ -1045,7 +1055,7 @@ mod tests {
                     Matrix::new_from_data(&vec![vec![0, 1, 2], vec![10, 11, 12], vec![20, 21, 22]])
                         .unwrap();
 
-                assert_eq!(m.get_columns(&(0..0)).unwrap(), Vec::<Vec<u8>>::new());
+                assert_eq!(m.get_columns(0..0).unwrap(), Vec::<Vec<u8>>::new());
             }
 
             #[test]
@@ -1054,7 +1064,7 @@ mod tests {
                     Matrix::new_from_data(&vec![vec![0, 1, 2], vec![10, 11, 12], vec![20, 21, 22]])
                         .unwrap();
 
-                assert_eq!(m.get_columns(&(2..6)), Err(6));
+                assert_eq!(m.get_columns(2..6), Err(6));
             }
 
             #[test]
@@ -1064,7 +1074,7 @@ mod tests {
                         .unwrap();
 
                 assert_eq!(
-                    m.get_columns(&(0..m.columns)).unwrap(),
+                    m.get_columns(0..m.columns).unwrap(),
                     vec![vec![0, 10, 20], vec![1, 11, 21], vec![2, 12, 22]]
                 );
             }
@@ -1172,7 +1182,10 @@ mod tests {
                     Matrix::new_from_data(&vec![vec![0, 1, 2], vec![10, 11, 12], vec![20, 21, 22]])
                         .unwrap();
 
-                assert_eq!(m.set_rows(&(0..2), &vec![vec![4, 5], vec![9, 8, 7, 6]]), Err(2))
+                assert_eq!(
+                    m.set_rows(&(0..2), &vec![vec![4, 5], vec![9, 8, 7, 6]]),
+                    Err(2)
+                )
             }
 
             #[test]
@@ -1368,16 +1381,16 @@ mod tests {
     mod operations {
         use super::*;
 
-		mod scale {
-			use super::*;
+        mod scale {
+            use super::*;
 
-			#[test]
-			fn correct_data() {
-				let mut m: Matrix<u8> = Matrix::new_identity(&3).unwrap();
+            #[test]
+            fn correct_data() {
+                let mut m: Matrix<u8> = Matrix::new_identity(&3).unwrap();
 
-				assert_eq!(m.scale(&2).data, vec![2, 0, 0, 0, 2, 0, 0, 0, 2]);
-			}
-		}
+                assert_eq!(m.scale(&2).data, vec![2, 0, 0, 0, 2, 0, 0, 0, 2]);
+            }
+        }
 
         mod scale_row {
             use super::*;
@@ -1466,220 +1479,226 @@ mod tests {
         }
     }
 
-	mod derivers {
-		use super::*;
+    mod derivers {
+        use super::*;
 
-		mod transpose {
-			use super::*;
+        mod transpose {
+            use super::*;
 
-			#[test]
-			fn correct_data() {
-				let m: Matrix<u8> = Matrix::new_with_data(&4, &2, &vec![00, 01, 10, 11, 20, 21, 30, 31]).unwrap();
+            #[test]
+            fn correct_data() {
+                let m: Matrix<u8> =
+                    Matrix::new_with_data(&4, &2, &vec![00, 01, 10, 11, 20, 21, 30, 31]).unwrap();
 
-				assert_eq!(m.transpose(), {Matrix{rows: 2, columns: 4, data: vec![00, 10, 20, 30, 01, 11, 21, 31]}});
-			}
-		}
+                assert_eq!(m.transpose(), {
+                    Matrix {
+                        rows: 2,
+                        columns: 4,
+                        data: vec![00, 10, 20, 30, 01, 11, 21, 31],
+                    }
+                });
+            }
+        }
 
-		mod minor {
-			use super::*;
+        mod minor {
+            use super::*;
 
-			#[test]
-			fn non_square_matrix() {
-				let m: Matrix<i8> = Matrix::new(&3, &4).unwrap();
+            #[test]
+            fn non_square_matrix() {
+                let m: Matrix<i8> = Matrix::new(&3, &4).unwrap();
 
-				assert_eq!(m.minor((&0, &0)), Err((3, 4)));
-			}
+                assert_eq!(m.minor((&0, &0)), Err((3, 4)));
+            }
 
-			#[test]
-			fn invalid_position() {
-				let m: Matrix<i8> = Matrix::new_identity(&4).unwrap();
+            #[test]
+            fn invalid_position() {
+                let m: Matrix<i8> = Matrix::new_identity(&4).unwrap();
 
-				assert_eq!(m.minor((&4, &2)), Err((4, 2)));
-				assert_eq!(m.minor((&3, &6)), Err((3, 6)));
-			}
+                assert_eq!(m.minor((&4, &2)), Err((4, 2)));
+                assert_eq!(m.minor((&3, &6)), Err((3, 6)));
+            }
 
-			#[test]
-			fn correct_data() {
-				let m:Matrix<i8> = Matrix::new_identity(&4).unwrap();
+            #[test]
+            fn correct_data() {
+                let m: Matrix<i8> = Matrix::new_identity(&4).unwrap();
 
-				assert_eq!(m.minor((&0, &0)).unwrap(), 1);
-				assert_eq!(m.minor((&0, &1)).unwrap(), 0);
-			}
-		}
+                assert_eq!(m.minor((&0, &0)).unwrap(), 1);
+                assert_eq!(m.minor((&0, &1)).unwrap(), 0);
+            }
+        }
 
-		mod minor_matrix {
-			use super::*;
+        mod minor_matrix {
+            use super::*;
 
-			#[test]
-			fn non_square_matrix() {
-				let m: Matrix<i8> = Matrix::new(&5, &2).unwrap();
+            #[test]
+            fn non_square_matrix() {
+                let m: Matrix<i8> = Matrix::new(&5, &2).unwrap();
 
-				assert_eq!(m.minor_matrix(), Err((5, 2)));
-			}
+                assert_eq!(m.minor_matrix(), Err((5, 2)));
+            }
 
-			#[test]
-			fn correct_data() {
-				let m: Matrix<i8> = Matrix::new_identity(&4).unwrap();
+            #[test]
+            fn correct_data() {
+                let m: Matrix<i8> = Matrix::new_identity(&4).unwrap();
 
-				assert_eq!(m.minor_matrix().unwrap().data, m.data);
-			}
-		}
+                assert_eq!(m.minor_matrix().unwrap().data, m.data);
+            }
+        }
 
-		mod cofactor {
-			use super::*;
+        mod cofactor {
+            use super::*;
 
-			#[test]
-			fn correct_data() {
-				let m: Matrix<i8> = Matrix::new_from_data(&vec![
-					vec![1, 1, 1, 1],
-					vec![1, 1, 1, 1],
-					vec![1, 1, 1, 1]
-				]).unwrap();
+            #[test]
+            fn correct_data() {
+                let m: Matrix<i8> = Matrix::new_from_data(&vec![
+                    vec![1, 1, 1, 1],
+                    vec![1, 1, 1, 1],
+                    vec![1, 1, 1, 1],
+                ])
+                .unwrap();
 
-				assert_eq!(m.cofactor().data, vec![1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, -1]);
-			}
-		}
+                assert_eq!(
+                    m.cofactor().data,
+                    vec![1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, -1]
+                );
+            }
+        }
 
-		mod adjoint {
-			use super::*;
+        mod adjoint {
+            use super::*;
 
-			#[test]
-			fn non_square_matrix() {
-				let m: Matrix<i8> = Matrix::new(&3, &5).unwrap();
+            #[test]
+            fn non_square_matrix() {
+                let m: Matrix<i8> = Matrix::new(&3, &5).unwrap();
 
-				assert_eq!(m.adjoint(), Err((m.rows, m.columns)));
-			}
+                assert_eq!(m.adjoint(), Err((m.rows, m.columns)));
+            }
 
-			#[test]
-			fn correct_data() {
-				let m: Matrix<i8> = Matrix::new_identity(&5).unwrap();
+            #[test]
+            fn correct_data() {
+                let m: Matrix<i8> = Matrix::new_identity(&5).unwrap();
 
-				assert_eq!(m.adjoint().unwrap().data, m.data);
-			}
-		}
+                assert_eq!(m.adjoint().unwrap().data, m.data);
+            }
+        }
 
-		mod determinant {
-			use super::*;
+        mod determinant {
+            use super::*;
 
-			#[test]
-			fn non_square_matrix() {
-				let m: Matrix<i8> = Matrix::new(&3, &4).unwrap();
+            #[test]
+            fn non_square_matrix() {
+                let m: Matrix<i8> = Matrix::new(&3, &4).unwrap();
 
-				assert_eq!(m.determinant(), Err((3, 4)));
-			}
+                assert_eq!(m.determinant(), Err((3, 4)));
+            }
 
-			#[test]
-			fn correct_data() {
-				let m: Matrix<i8> = Matrix::new_identity(&4).unwrap();
+            #[test]
+            fn correct_data() {
+                let m: Matrix<i8> = Matrix::new_identity(&4).unwrap();
 
-				assert_eq!(m.determinant().unwrap(), 1);
-			}
-		}
+                assert_eq!(m.determinant().unwrap(), 1);
+            }
+        }
 
-		mod inverse {
-			use super::*;
+        mod inverse {
+            use super::*;
 
-			#[test]
-			fn non_square_matrix() {
-				let m: Matrix<i8> = Matrix::new(&3, &7).unwrap();
+            #[test]
+            fn non_square_matrix() {
+                let m: Matrix<i8> = Matrix::new(&3, &7).unwrap();
 
-				assert_eq!(m.inverse(), Err((3, 7)));
-			}
+                assert_eq!(m.inverse(), Err((3, 7)));
+            }
 
-			#[test]
-			fn correct_data() {
-				let m: Matrix<i8> = Matrix::new_identity(&2).unwrap();
+            #[test]
+            fn correct_data() {
+                let m: Matrix<i8> = Matrix::new_identity(&2).unwrap();
 
-				assert_eq!(m.inverse().unwrap().data, m.data);
-			}
-		}
-	}
+                assert_eq!(m.inverse().unwrap().data, m.data);
+            }
+        }
+    }
 
-	mod traits {
-		use super::*;
+    mod traits {
+        use super::*;
 
-		mod add {
-			use super::*;
+        mod add {
+            use super::*;
 
-			#[test]
-			fn different_size() {
-				let m1: Matrix<i8> = Matrix::new(&3, &4).unwrap();
-				let m2: Matrix<i8> = Matrix::new(&5, &4).unwrap();
-				let m3: Matrix<i8> = Matrix::new(&3, &4).unwrap();
-				let m4: Matrix<i8> = Matrix::new(&3, &6).unwrap();
+            #[test]
+            fn different_size() {
+                let m1: Matrix<i8> = Matrix::new(&3, &4).unwrap();
+                let m2: Matrix<i8> = Matrix::new(&5, &4).unwrap();
+                let m3: Matrix<i8> = Matrix::new(&3, &4).unwrap();
+                let m4: Matrix<i8> = Matrix::new(&3, &6).unwrap();
 
-				assert_eq!(m1 + m2, Err((3, 5)));
-				assert_eq!(m3 + m4, Err((4, 6)));
-			}
+                assert_eq!(m1 + m2, Err((3, 5)));
+                assert_eq!(m3 + m4, Err((4, 6)));
+            }
 
-			#[test]
-			fn correct_data() {
-				let m1: Matrix<i8> = Matrix::new_identity(&3).unwrap();
-				let m2: Matrix<i8> = Matrix::new_identity(&3).unwrap();
+            #[test]
+            fn correct_data() {
+                let m1: Matrix<i8> = Matrix::new_identity(&3).unwrap();
+                let m2: Matrix<i8> = Matrix::new_identity(&3).unwrap();
 
-				assert_eq!((m1 + m2).unwrap().data, vec![2, 0, 0, 0, 2, 0, 0, 0, 2]);
-			}
-		}
+                assert_eq!((m1 + m2).unwrap().data, vec![2, 0, 0, 0, 2, 0, 0, 0, 2]);
+            }
+        }
 
-		mod sub {
-			use super::*;
+        mod sub {
+            use super::*;
 
-			#[test]
-			fn different_size() {
-				let m1: Matrix<i8> = Matrix::new(&3, &3).unwrap();
-				let m2: Matrix<i8> = Matrix::new(&2, &3).unwrap();
-				let m3: Matrix<i8> = Matrix::new(&3, &3).unwrap();
-				let m4: Matrix<i8> = Matrix::new(&3, &4).unwrap();
+            #[test]
+            fn different_size() {
+                let m1: Matrix<i8> = Matrix::new(&3, &3).unwrap();
+                let m2: Matrix<i8> = Matrix::new(&2, &3).unwrap();
+                let m3: Matrix<i8> = Matrix::new(&3, &3).unwrap();
+                let m4: Matrix<i8> = Matrix::new(&3, &4).unwrap();
 
-				assert_eq!(m1 - m2, Err((3, 2)));
-				assert_eq!(m3 - m4, Err((3, 4)));
-			}
+                assert_eq!(m1 - m2, Err((3, 2)));
+                assert_eq!(m3 - m4, Err((3, 4)));
+            }
 
-			#[test]
-			fn correct_data() {
-				let m1: Matrix<i8> = Matrix::new_identity(&3).unwrap();
-				let m2: Matrix<i8> = Matrix::new_identity(&3).unwrap();
+            #[test]
+            fn correct_data() {
+                let m1: Matrix<i8> = Matrix::new_identity(&3).unwrap();
+                let m2: Matrix<i8> = Matrix::new_identity(&3).unwrap();
 
-				assert_eq!((m1 - m2).unwrap().data, vec![0, 0, 0, 0, 0, 0, 0, 0, 0]);
-			}
-		}
+                assert_eq!((m1 - m2).unwrap().data, vec![0, 0, 0, 0, 0, 0, 0, 0, 0]);
+            }
+        }
 
-		mod mul {
-			use super::*;
+        mod mul {
+            use super::*;
 
-			#[test]
-			fn invalid_size() {
-				let m1: Matrix<i8> = Matrix::new(&3, &4).unwrap();
-				let m2: Matrix<i8> = Matrix::new(&3, &3).unwrap();
+            #[test]
+            fn invalid_size() {
+                let m1: Matrix<i8> = Matrix::new(&3, &4).unwrap();
+                let m2: Matrix<i8> = Matrix::new(&3, &3).unwrap();
 
-				assert_eq!(m1 * m2, Err((4, 3)));
-			}
+                assert_eq!(m1 * m2, Err((4, 3)));
+            }
 
-			#[test]
-			fn correct_data() {
-				let m1 = Matrix::new_from_data(&vec![
-					vec![0, 1],
-					vec![2, 3]
-				]).unwrap();
-				let m2 = Matrix::new_from_data(&vec![
-					vec![3, 2],
-					vec![1, 0]
-				]).unwrap();
+            #[test]
+            fn correct_data() {
+                let m1 = Matrix::new_from_data(&vec![vec![0, 1], vec![2, 3]]).unwrap();
+                let m2 = Matrix::new_from_data(&vec![vec![3, 2], vec![1, 0]]).unwrap();
 
-				assert_eq!((m1 * m2).unwrap().data, vec![1, 0, 9, 4]);
-			}
+                assert_eq!((m1 * m2).unwrap().data, vec![1, 0, 9, 4]);
+            }
 
-			#[test]
-			fn identity() {
-				let m1 = Matrix::new_identity(&3).unwrap();
-				let m2 = Matrix::new_from_data(&vec![
-					vec![0, 1, 2],
-					vec![10, 11, 12],
-					vec![20, 21, 22]
-				]).unwrap();
+            #[test]
+            fn identity() {
+                let m1 = Matrix::new_identity(&3).unwrap();
+                let m2 =
+                    Matrix::new_from_data(&vec![vec![0, 1, 2], vec![10, 11, 12], vec![20, 21, 22]])
+                        .unwrap();
 
-				assert_eq!((m1 * m2).unwrap().data, vec![0, 1, 2, 10, 11, 12, 20, 21, 22]);
-			}
-		}
-	}
+                assert_eq!(
+                    (m1 * m2).unwrap().data,
+                    vec![0, 1, 2, 10, 11, 12, 20, 21, 22]
+                );
+            }
+        }
+    }
 }
