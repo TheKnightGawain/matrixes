@@ -29,26 +29,26 @@ where
     /// # Errors
     ///
     /// Niether rows nor columns can be 0.
-    pub fn new(rows: &usize, columns: &usize) -> Result<Self, SE>
+    pub fn new(rows: usize, columns: usize) -> Result<Self, SE>
     where
         T: Zero,
     {
-        if *rows == 0 && *columns == 0 {
-            return Err(SE::Both(*rows, *columns));
+        if rows == 0 && columns == 0 {
+            return Err(SE::Both(rows, columns));
         }
 
-        if *rows == 0 {
+        if rows == 0 {
             return Err(SE::Row(0));
         }
 
-        if *columns == 0 {
+        if columns == 0 {
             return Err(SE::Column(0));
         }
 
         Ok(Self {
             data: vec![T::zero(); rows * columns],
-            rows: *rows,
-            columns: *columns,
+            rows: rows,
+            columns: columns,
         })
     }
 
@@ -57,26 +57,26 @@ where
     /// # Errors
     ///
     /// n cannot be 0.
-    pub fn new_identity(n: &usize) -> Option<Self>
+    pub fn new_identity(n: usize) -> Option<Self>
     where
         T: Zero + One,
     {
-        if *n == 0 {
+        if n == 0 {
             return None;
         }
 
         Some(Self {
             data: (0..n.pow(2))
                 .map(|i| {
-                    if i % (*n + 1) == 0 {
+                    if i % (n + 1) == 0 {
                         T::one()
                     } else {
                         T::zero()
                     }
                 })
                 .collect(),
-            rows: *n,
-            columns: *n,
+            rows: n,
+            columns: n,
         })
     }
 
@@ -85,25 +85,25 @@ where
     /// # Errors
     ///
     /// columns cannot be zero. data must have non-zero length that is divisable by columns.
-    pub fn new_with_data(columns: &usize, data: Vec<T>) -> Result<Self, SE> {
+    pub fn new_with_data(columns: usize, data: Vec<T>) -> Result<Self, SE> {
         let len = data.len();
 
-        if *columns == 0 && len == 0 {
+        if columns == 0 && len == 0 {
             return Err(SE::Both(0, 0));
         }
 
-        if *columns == 0 {
+        if columns == 0 {
             return Err(SE::Column(0));
         }
 
-        if len == 0 || len % *columns != 0 {
-            return Err(SE::Row(len % *columns));
+        if len == 0 || len % columns != 0 {
+            return Err(SE::Row(len % columns));
         }
 
         Ok(Self {
             data,
-            rows: len / *columns,
-            columns: *columns,
+            rows: len / columns,
+            columns: columns,
         })
     }
 
@@ -175,12 +175,12 @@ where
     /// # Errors
     ///
     /// index cannot reference a row that does not exist.
-    pub fn get_row(&self, index: &usize) -> Option<Vec<&T>> {
-        if *index >= self.rows {
+    pub fn get_row(&self, index: usize) -> Option<Vec<&T>> {
+        if index >= self.rows {
             return None;
         }
 
-        Some((0..self.columns).map(|c| &self[(index, &c)]).collect())
+        Some((0..self.columns).map(|c| &self[(index, c)]).collect())
     }
 
     /// Returns a vec of rows indexed by the range.
@@ -189,7 +189,7 @@ where
     ///
     /// range cannot refer to a row that does not exist.
     pub fn get_rows(&self, range: Range<usize>) -> Option<Vec<Vec<&T>>> {
-        range.map(|r| self.get_row(&r)).collect::<Option<Vec<_>>>()
+        range.map(|r| self.get_row(r)).collect::<Option<Vec<_>>>()
     }
 
     /// Returns indexed column as a vec of references.
@@ -197,12 +197,12 @@ where
     /// # Error
     ///
     /// index cannot refer to a column that does not exist.
-    pub fn get_column(&self, index: &usize) -> Option<Vec<&T>> {
-        if *index >= self.columns {
+    pub fn get_column(&self, index: usize) -> Option<Vec<&T>> {
+        if index >= self.columns {
             return None;
         }
 
-        Some((0..self.rows).map(|r| &self[(&r, index)]).collect())
+        Some((0..self.rows).map(|r| &self[(r, index)]).collect())
     }
 
     /// Returns a vec of columns indexed by the range.
@@ -212,7 +212,7 @@ where
     /// range cannot refer to a column that does not exist.
     pub fn get_columns(&self, range: Range<usize>) -> Option<Vec<Vec<&T>>> {
         range
-            .map(|c| self.get_column(&c))
+            .map(|c| self.get_column(c))
             .collect::<Option<Vec<Vec<&T>>>>()
     }
 }
@@ -232,13 +232,13 @@ where
     /// # Errors
     ///
     /// index cannot refer to a row that does not exist.
-    pub fn get_mut_row(&mut self, index: &usize) -> Option<Vec<&mut T>> {
-        if *index >= self.rows {
+    pub fn get_mut_row(&mut self, index: usize) -> Option<Vec<&mut T>> {
+        if index >= self.rows {
             return None;
         }
 
         Some(
-            self.data[(*index * self.columns)..((*index + 1) * self.columns)]
+            self.data[(index * self.columns)..((index + 1) * self.columns)]
                 .iter_mut()
                 .collect(),
         )
@@ -249,15 +249,15 @@ where
     /// # Errors
     ///
     /// index cannot refer to a column that does not exist.
-    pub fn get_mut_column(&mut self, index: &usize) -> Option<Vec<&mut T>> {
-        if *index >= self.columns {
+    pub fn get_mut_column(&mut self, index: usize) -> Option<Vec<&mut T>> {
+        if index >= self.columns {
             return None;
         }
 
         Some(
             self.data
                 .iter_mut()
-                .skip(*index)
+                .skip(index)
                 .step_by(self.columns)
                 .collect(),
         )
@@ -274,29 +274,29 @@ where
     /// # Errors
     ///
     /// el1 and el2 must refer to valid elements of the matrix
-    pub fn swap_elements(&mut self, el1: (&usize, &usize), el2: (&usize, &usize)) -> Option<BE> {
-        if *el1.0 >= self.rows && *el1.1 >= self.columns {
-            return Some(BE::Both(*el1.0, *el1.1));
+    pub fn swap_elements(&mut self, el1: (usize, usize), el2: (usize, usize)) -> Option<BE> {
+        if el1.0 >= self.rows && el1.1 >= self.columns {
+            return Some(BE::Both(el1.0, el1.1));
         }
 
-        if *el1.0 >= self.rows {
-            return Some(BE::Row(*el1.0));
+        if el1.0 >= self.rows {
+            return Some(BE::Row(el1.0));
         }
 
-        if *el1.1 >= self.columns {
-            return Some(BE::Column(*el1.1));
+        if el1.1 >= self.columns {
+            return Some(BE::Column(el1.1));
         }
 
-        if *el2.0 >= self.rows && *el2.1 >= self.columns {
-            return Some(BE::Both(*el2.0, *el2.1));
+        if el2.0 >= self.rows && el2.1 >= self.columns {
+            return Some(BE::Both(el2.0, el2.1));
         }
 
-        if *el2.0 >= self.rows {
-            return Some(BE::Row(*el2.0));
+        if el2.0 >= self.rows {
+            return Some(BE::Row(el2.0));
         }
 
-        if *el2.1 >= self.columns {
-            return Some(BE::Column(*el2.1));
+        if el2.1 >= self.columns {
+            return Some(BE::Column(el2.1));
         }
 
         let temp = self[el1];
@@ -311,10 +311,10 @@ where
     /// # Errors
     ///
     /// row1 and row2 must refer to rows that exist
-    pub fn swap_rows(&mut self, row1: &usize, row2: &usize) -> Option<BE> {
+    pub fn swap_rows(&mut self, row1: usize, row2: usize) -> Option<BE> {
         let first = match self.get_row(row1) {
             Some(t) => t,
-            None => return Some(BE::Row(*row1)),
+            None => return Some(BE::Row(row1)),
         }
         .iter()
         .map(|&e| *e)
@@ -322,7 +322,7 @@ where
 
         let second = match self.get_row(row2) {
             Some(t) => t,
-            None => return Some(BE::Row(*row2)),
+            None => return Some(BE::Row(row2)),
         }
         .iter()
         .map(|&e| *e)
@@ -348,17 +348,17 @@ where
     /// # Errors
     ///
     /// col1 and col2 must refer to columns that exist.
-    pub fn swap_columns(&mut self, col1: &usize, col2: &usize) -> Option<BE> {
+    pub fn swap_columns(&mut self, col1: usize, col2: usize) -> Option<BE> {
         let first = match self.get_column(col1) {
             Some(t) => t,
-            None => return Some(BE::Column(*col1)),
+            None => return Some(BE::Column(col1)),
         }
         .iter()
         .map(|&e| *e)
         .collect::<Vec<_>>();
         let second = match self.get_column(col2) {
             Some(t) => t,
-            None => return Some(BE::Column(*col2)),
+            None => return Some(BE::Column(col2)),
         }
         .iter()
         .map(|&e| *e)
@@ -386,8 +386,8 @@ where
     T: Copy + Mul<Output = T>,
 {
     /// Multiplies each element of the matrix by factor.
-    pub fn scale(&mut self, factor: &T) {
-        self.data.iter_mut().for_each(|e| *e = *e * *factor);
+    pub fn scale(&mut self, factor: T) {
+        self.data.iter_mut().for_each(|e| *e = *e * factor);
     }
 
     /// Multiplies each element of indexed row by factor.
@@ -399,13 +399,13 @@ where
     /// # Panics
     ///
     /// Multiplication by factor may panic.
-    pub fn scale_row(&mut self, row: &usize, factor: &T) -> Option<BE> {
+    pub fn scale_row(&mut self, row: usize, factor: T) -> Option<BE> {
         match self.get_mut_row(row) {
             Some(t) => t,
-            None => return Some(BE::Row(*row)),
+            None => return Some(BE::Row(row)),
         }
         .iter_mut()
-        .for_each(|t| **t = **t * *factor);
+        .for_each(|t| **t = **t * factor);
 
         None
     }
@@ -419,13 +419,13 @@ where
     /// # Panics
     ///
     /// Multiplication by factor may panic.
-    pub fn add_scaled_row(&mut self, source: &usize, target: &usize, factor: &T) -> Option<BE>
+    pub fn add_scaled_row(&mut self, source: usize, target: usize, factor: T) -> Option<BE>
     where
         T: Add<Output = T>,
     {
         let source_row = match self.get_row(source) {
             Some(t) => t,
-            None => return Some(BE::Row(*source)),
+            None => return Some(BE::Row(source)),
         }
         .iter()
         .map(|&e| *e)
@@ -433,11 +433,11 @@ where
 
         match self.get_mut_row(target) {
             Some(t) => t,
-            None => return Some(BE::Row(*target)),
+            None => return Some(BE::Row(target)),
         }
         .iter_mut()
         .zip(source_row.iter())
-        .for_each(|(t, s)| **t = **t + (*s * *factor));
+        .for_each(|(t, s)| **t = **t + (*s * factor));
 
         None
     }
@@ -451,13 +451,13 @@ where
     /// # Panics
     ///
     /// Multiplication by factor may panic.
-    pub fn scale_column(&mut self, column: &usize, factor: &T) -> Option<BE> {
+    pub fn scale_column(&mut self, column: usize, factor: T) -> Option<BE> {
         match self.get_mut_column(column) {
             Some(t) => t,
-            None => return Some(BE::Column(*column)),
+            None => return Some(BE::Column(column)),
         }
         .iter_mut()
-        .for_each(|t| **t = **t * *factor);
+        .for_each(|t| **t = **t * factor);
 
         None
     }
@@ -471,13 +471,13 @@ where
     /// # Panics
     ///
     /// Multiplication by factor may panic.
-    pub fn add_scaled_column(&mut self, source: &usize, target: &usize, factor: &T) -> Option<BE>
+    pub fn add_scaled_column(&mut self, source: usize, target: usize, factor: T) -> Option<BE>
     where
         T: Add<Output = T>,
     {
         let source_row = match self.get_column(source) {
             Some(t) => t,
-            None => return Some(BE::Column(*source)),
+            None => return Some(BE::Column(source)),
         }
         .iter()
         .map(|&e| *e)
@@ -485,11 +485,11 @@ where
 
         match self.get_mut_column(target) {
             Some(t) => t,
-            None => return Some(BE::Column(*target)),
+            None => return Some(BE::Column(target)),
         }
         .iter_mut()
         .zip(source_row.iter())
-        .for_each(|(t, s)| **t = **t + (*s * *factor));
+        .for_each(|(t, s)| **t = **t + (*s * factor));
 
         None
     }
@@ -520,7 +520,7 @@ where
     /// # Errors
     ///
     /// matrix must be square and indexed element must exist.
-    pub fn minor(&self, element: (&usize, &usize)) -> Result<T, ME>
+    pub fn minor(&self, element: (usize, usize)) -> Result<T, ME>
     where
         T: Mul<Output = T> + Sub<Output = T> + Zero,
     {
@@ -528,23 +528,23 @@ where
             return Err(SE::NotSquare.into());
         }
 
-        if *element.0 >= self.rows && *element.1 >= self.columns {
-            return Err(BE::Both(*element.0, *element.1).into());
+        if element.0 >= self.rows && element.1 >= self.columns {
+            return Err(BE::Both(element.0, element.1).into());
         }
 
-        if *element.1 >= self.columns {
-            return Err(BE::Column(*element.1).into());
+        if element.1 >= self.columns {
+            return Err(BE::Column(element.1).into());
         }
 
         let extract_from_row = |r: &Vec<&T>| -> Vec<T> {
-            let mut out: Vec<T> = r[..*element.1].iter().map(|&e| *e).collect();
+            let mut out: Vec<T> = r[..element.1].iter().map(|&e| *e).collect();
             out.append(&mut r[element.1 + 1..].iter().map(|&e| *e).collect());
             out
         };
 
-        let mut data: Vec<Vec<T>> = match self.get_rows(0..*element.0) {
+        let mut data: Vec<Vec<T>> = match self.get_rows(0..element.0) {
             Some(t) => t,
-            None => return Err(BE::Row(*element.0).into()),
+            None => return Err(BE::Row(element.0).into()),
         }
         .iter()
         .map(extract_from_row)
@@ -576,10 +576,10 @@ where
         }
 
         Matrix::new_with_data(
-            &self.columns,
+            self.columns,
             (0..(self.rows * self.columns))
                 .map(|n| {
-                    self.minor((&(n / self.columns), &(n % self.columns)))
+                    self.minor(((n / self.columns), (n % self.columns)))
                         .unwrap()
                 })
                 .collect(),
@@ -635,12 +635,12 @@ where
         }
 
         Some(
-            self.get_row(&0)
+            self.get_row(0)
                 .unwrap()
                 .iter()
                 .enumerate()
                 .fold(T::zero(), |res, (c, &e)| {
-                    let det = *e * self.minor((&0, &c)).unwrap();
+                    let det = *e * self.minor((0, c)).unwrap();
                     if c % 2 == 0 {
                         res + det
                     } else {
@@ -664,31 +664,31 @@ where
         }
 
         let mut clone = self.clone();
-        let mut out = Matrix::new_identity(&clone.rows).unwrap();
+        let mut out = Matrix::new_identity(clone.rows).unwrap();
 
         for c in 0..clone.rows {
-            if !T::is_one(&clone[(&c, &c)]) {
-                if T::is_zero(&clone[(&c, &c)]) {
+            if !T::is_one(&clone[(c, c)]) {
+                if T::is_zero(&clone[(c, c)]) {
                     return Err(IE::InvalidDeterminant);
                 }
-                let factor = T::one() / clone[(&c, &c)];
-                clone.scale_row(&c, &factor);
-                out.scale_row(&c, &factor);
+                let factor = T::one() / clone[(c, c)];
+                clone.scale_row(c, factor);
+                out.scale_row(c, factor);
             }
 
             for r in 0..c {
-                if !T::is_zero(&clone[(&r, &c)]) {
-                    let factor = clone[(&r, &c)].neg();
-                    clone.add_scaled_row(&c, &r, &factor);
-                    out.add_scaled_row(&c, &r, &factor);
+                if !T::is_zero(&clone[(r, c)]) {
+                    let factor = clone[(r, c)].neg();
+                    clone.add_scaled_row(c, r, factor);
+                    out.add_scaled_row(c, r, factor);
                 }
             }
 
             for r in (c + 1)..clone.rows {
-                if !T::is_zero(&clone[(&r, &c)]) {
-                    let factor = clone[(&r, &c)].neg();
-                    clone.add_scaled_row(&c, &r, &factor);
-                    out.add_scaled_row(&c, &r, &factor);
+                if !T::is_zero(&clone[(r, c)]) {
+                    let factor = clone[(r, c)].neg();
+                    clone.add_scaled_row(c, r, factor);
+                    out.add_scaled_row(c, r, factor);
                 }
             }
         }
@@ -706,24 +706,24 @@ where
             return write!(f, "{:?}", self.data);
         }
 
-        writeln!(f, "{:?}", self.get_row(&0).unwrap())?;
+        writeln!(f, "{:?}", self.get_row(0).unwrap())?;
         let middle = self.get_rows(1..(self.rows - 1)).unwrap();
         for row in middle {
             writeln!(f, "{:?}", row)?;
         }
-        write!(f, "{:?}", self.get_row(&(self.rows - 1)).unwrap())
+        write!(f, "{:?}", self.get_row(self.rows - 1).unwrap())
     }
 }
 
-impl<T> Index<(&usize, &usize)> for Matrix<T>
+impl<T> Index<(usize, usize)> for Matrix<T>
 where
     T: Copy,
 {
     type Output = T;
 
-    fn index(&self, index: (&usize, &usize)) -> &Self::Output {
+    fn index(&self, index: (usize, usize)) -> &Self::Output {
         assert!(
-            *index.0 < self.rows && *index.1 < self.columns,
+            index.0 < self.rows && index.1 < self.columns,
             "Index out of bounds. index: {:?}, matrix bounds: {:?}",
             index,
             (self.rows, self.columns)
@@ -733,13 +733,13 @@ where
     }
 }
 
-impl<T> IndexMut<(&usize, &usize)> for Matrix<T>
+impl<T> IndexMut<(usize, usize)> for Matrix<T>
 where
     T: Copy,
 {
-    fn index_mut(&mut self, index: (&usize, &usize)) -> &mut Self::Output {
+    fn index_mut(&mut self, index: (usize, usize)) -> &mut Self::Output {
         assert!(
-            *index.0 < self.rows && *index.1 < self.columns,
+            index.0 < self.rows && index.1 < self.columns,
             "Index out of bounds. index: {:?}, matrix bounds: {:?}",
             index,
             (self.rows, self.columns)
@@ -930,10 +930,10 @@ where
                 .map(|r| {
                     (0..rhs.columns)
                         .map(|c| {
-                            self.get_row(&r)
+                            self.get_row(r)
                                 .unwrap()
                                 .iter()
-                                .zip(rhs.get_column(&c).unwrap().iter())
+                                .zip(rhs.get_column(c).unwrap().iter())
                                 .fold(U::zero(), |res, (&el, &er)| res + (*el * *er))
                         })
                         .collect::<Vec<_>>()
@@ -960,10 +960,10 @@ where
                 .map(|r| {
                     (0..rhs.columns)
                         .map(|c| {
-                            self.get_row(&r)
+                            self.get_row(r)
                                 .unwrap()
                                 .iter()
-                                .zip(rhs.get_column(&c).unwrap().iter())
+                                .zip(rhs.get_column(c).unwrap().iter())
                                 .fold(U::zero(), |res, (&el, &er)| res + (*el * *er))
                         })
                         .collect::<Vec<_>>()
@@ -1017,15 +1017,15 @@ mod tests {
 
             #[test]
             fn handles_errors() {
-                assert_eq!(Matrix::<u8>::new(&0, &5), Err(SE::Row(0)));
-                assert_eq!(Matrix::<i32>::new(&2, &0), Err(SE::Column(0)));
-                assert_eq!(Matrix::<usize>::new(&0, &0), Err(SE::Both(0, 0)));
+                assert_eq!(Matrix::<u8>::new(0, 5), Err(SE::Row(0)));
+                assert_eq!(Matrix::<i32>::new(2, 0), Err(SE::Column(0)));
+                assert_eq!(Matrix::<usize>::new(0, 0), Err(SE::Both(0, 0)));
             }
 
             #[test]
             fn creates_matrix() {
                 assert_eq!(
-                    Matrix::<i8>::new(&2, &5),
+                    Matrix::<i8>::new(2, 5),
                     Ok(Matrix {
                         data: vec![0; 10],
                         rows: 2,
@@ -1033,7 +1033,7 @@ mod tests {
                     })
                 );
                 assert_eq!(
-                    Matrix::new(&8, &3),
+                    Matrix::new(8, 3),
                     Ok(Matrix {
                         data: vec![0; 24],
                         rows: 8,
@@ -1041,7 +1041,7 @@ mod tests {
                     })
                 );
                 assert_eq!(
-                    Matrix::new(&4, &4),
+                    Matrix::new(4, 4),
                     Ok(Matrix {
                         data: vec![0; 16],
                         rows: 4,
@@ -1056,13 +1056,13 @@ mod tests {
 
             #[test]
             fn handles_errors() {
-                assert_eq!(Matrix::<i128>::new_identity(&0), None);
+                assert_eq!(Matrix::<i128>::new_identity(0), None);
             }
 
             #[test]
             fn creates_matrix() {
                 assert_eq!(
-                    Matrix::new_identity(&4),
+                    Matrix::new_identity(4),
                     Some(Matrix {
                         data: vec![1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
                         rows: 4,
@@ -1078,21 +1078,18 @@ mod tests {
             #[test]
             fn handles_errors() {
                 assert_eq!(
-                    Matrix::new_with_data(&0, vec![1, 2, 3, 4]),
+                    Matrix::new_with_data(0, vec![1, 2, 3, 4]),
                     Err(SE::Column(0))
                 );
-                assert_eq!(Matrix::<u8>::new_with_data(&4, vec![]), Err(SE::Row(0)));
-                assert_eq!(Matrix::new_with_data(&3, vec![5; 7]), Err(SE::Row(1)));
-                assert_eq!(
-                    Matrix::<i16>::new_with_data(&0, vec![]),
-                    Err(SE::Both(0, 0))
-                )
+                assert_eq!(Matrix::<u8>::new_with_data(4, vec![]), Err(SE::Row(0)));
+                assert_eq!(Matrix::new_with_data(3, vec![5; 7]), Err(SE::Row(1)));
+                assert_eq!(Matrix::<i16>::new_with_data(0, vec![]), Err(SE::Both(0, 0)))
             }
 
             #[test]
             fn creates_matrix() {
                 assert_eq!(
-                    Matrix::new_with_data(&7, (0u32..35).collect()),
+                    Matrix::new_with_data(7, (0u32..35).collect()),
                     Ok(Matrix {
                         data: (0u32..35).collect(),
                         rows: 5,
@@ -1155,30 +1152,30 @@ mod tests {
 
         #[test]
         fn data() {
-            let m = Matrix::<u16>::new(&12, &5).unwrap();
+            let m = Matrix::<u16>::new(12, 5).unwrap();
 
             assert_eq!(m.data(), vec![0; 60]);
         }
 
         #[test]
         fn rows() {
-            let m = Matrix::<u16>::new(&9, &3).unwrap();
+            let m = Matrix::<u16>::new(9, 3).unwrap();
 
             assert_eq!(m.rows(), 9);
         }
 
         #[test]
         fn columns() {
-            let m = Matrix::<u16>::new(&2, &4).unwrap();
+            let m = Matrix::<u16>::new(2, 4).unwrap();
 
             assert_eq!(m.columns(), 4);
         }
 
         #[test]
         fn is_square() {
-            let m1 = Matrix::<u16>::new(&6, &2).unwrap();
-            let m2 = Matrix::<i8>::new(&3, &3).unwrap();
-            let m3 = Matrix::<u32>::new_identity(&4).unwrap();
+            let m1 = Matrix::<u16>::new(6, 2).unwrap();
+            let m2 = Matrix::<i8>::new(3, 3).unwrap();
+            let m3 = Matrix::<u32>::new_identity(4).unwrap();
 
             assert!(!m1.is_square());
             assert!(m2.is_square());
@@ -1192,14 +1189,14 @@ mod tests {
             fn handles_errors() {
                 let m = Matrix::new_from_data(&vec![vec![0]]).unwrap();
 
-                assert_eq!(m.get_row(&3), None);
+                assert_eq!(m.get_row(3), None);
             }
 
             #[test]
             fn gets_row() {
-                let m = Matrix::<i32>::new_identity(&5).unwrap();
+                let m = Matrix::<i32>::new_identity(5).unwrap();
 
-                assert_eq!(m.get_row(&3).unwrap(), vec![&0i32, &0, &0, &1, &0]);
+                assert_eq!(m.get_row(3).unwrap(), vec![&0i32, &0, &0, &1, &0]);
             }
         }
 
@@ -1208,14 +1205,14 @@ mod tests {
 
             #[test]
             fn handles_errors() {
-                let m = Matrix::<u8>::new_identity(&4).unwrap();
+                let m = Matrix::<u8>::new_identity(4).unwrap();
 
                 assert_eq!(m.get_rows(0..8), None);
             }
 
             #[test]
             fn gets_rows() {
-                let m = Matrix::<u64>::new_identity(&7).unwrap();
+                let m = Matrix::<u64>::new_identity(7).unwrap();
 
                 assert_eq!(
                     m.get_rows(1..4).unwrap(),
@@ -1240,7 +1237,7 @@ mod tests {
                 ])
                 .unwrap();
 
-                assert_eq!(m.get_column(&5), None);
+                assert_eq!(m.get_column(5), None);
             }
 
             #[test]
@@ -1252,7 +1249,7 @@ mod tests {
                 ])
                 .unwrap();
 
-                assert_eq!(m.get_column(&3).unwrap(), vec![&4, &7, &2]);
+                assert_eq!(m.get_column(3).unwrap(), vec![&4, &7, &2]);
             }
         }
 
@@ -1293,7 +1290,7 @@ mod tests {
 
         #[test]
         fn data_mut() {
-            let mut m = Matrix::new_identity(&2).unwrap();
+            let mut m = Matrix::new_identity(2).unwrap();
             let data = m.data_mut();
 
             assert_eq!(data, &mut vec![1, 0, 0, 1]);
@@ -1308,21 +1305,21 @@ mod tests {
 
             #[test]
             fn handles_errors() {
-                let mut m = Matrix::<i128>::new(&7, &5).unwrap();
+                let mut m = Matrix::<i128>::new(7, 5).unwrap();
 
-                assert_eq!(m.get_mut_row(&23), None);
+                assert_eq!(m.get_mut_row(23), None);
             }
 
             #[test]
             fn gets_mut_row() {
-                let mut m = Matrix::<i8>::new_identity(&3).unwrap();
-                let mut row = m.get_mut_row(&2).unwrap();
+                let mut m = Matrix::<i8>::new_identity(3).unwrap();
+                let mut row = m.get_mut_row(2).unwrap();
 
                 assert_eq!(row, vec![&mut 0, &mut 0, &mut 1]);
 
                 *row[0] = 3;
 
-                assert_eq!(m.get_row(&2).unwrap(), vec![&3, &0, &1]);
+                assert_eq!(m.get_row(2).unwrap(), vec![&3, &0, &1]);
             }
         }
 
@@ -1331,9 +1328,9 @@ mod tests {
 
             #[test]
             fn handles_errors() {
-                let mut m = Matrix::<u8>::new(&5, &8).unwrap();
+                let mut m = Matrix::<u8>::new(5, 8).unwrap();
 
-                assert_eq!(m.get_mut_column(&19), None);
+                assert_eq!(m.get_mut_column(19), None);
             }
 
             #[test]
@@ -1345,13 +1342,13 @@ mod tests {
                     vec![7, 6, 5, 4, 3, 2, 1],
                 ])
                 .unwrap();
-                let mut col = m.get_mut_column(&5).unwrap();
+                let mut col = m.get_mut_column(5).unwrap();
 
                 assert_eq!(col, vec![&mut 6, &mut 13, &mut 9, &mut 2]);
 
                 *col[3] = 17;
 
-                assert_eq!(m.get_column(&5).unwrap(), vec![&6, &13, &9, &17]);
+                assert_eq!(m.get_column(5).unwrap(), vec![&6, &13, &9, &17]);
             }
         }
     }
@@ -1364,24 +1361,21 @@ mod tests {
 
             #[test]
             fn handles_errors() {
-                let mut m = Matrix::<u16>::new_identity(&6).unwrap();
+                let mut m = Matrix::<u16>::new_identity(6).unwrap();
 
-                assert_eq!(m.swap_elements((&13, &2), (&5, &1)), Some(BE::Row(13)));
-                assert_eq!(m.swap_elements((&0, &8), (&3, &4)), Some(BE::Column(8)));
-                assert_eq!(
-                    m.swap_elements((&18, &27), (&1, &2)),
-                    Some(BE::Both(18, 27))
-                );
-                assert_eq!(m.swap_elements((&3, &0), (&6, &5)), Some(BE::Row(6)));
-                assert_eq!(m.swap_elements((&4, &3), (&3, &9)), Some(BE::Column(9)));
-                assert_eq!(m.swap_elements((&0, &2), (&12, &7)), Some(BE::Both(12, 7)));
+                assert_eq!(m.swap_elements((13, 2), (5, 1)), Some(BE::Row(13)));
+                assert_eq!(m.swap_elements((0, 8), (3, 4)), Some(BE::Column(8)));
+                assert_eq!(m.swap_elements((18, 27), (1, 2)), Some(BE::Both(18, 27)));
+                assert_eq!(m.swap_elements((3, 0), (6, 5)), Some(BE::Row(6)));
+                assert_eq!(m.swap_elements((4, 3), (3, 9)), Some(BE::Column(9)));
+                assert_eq!(m.swap_elements((0, 2), (12, 7)), Some(BE::Both(12, 7)));
             }
 
             #[test]
             fn swaps_elements() {
-                let mut m = Matrix::<i8>::new_identity(&3).unwrap();
+                let mut m = Matrix::<i8>::new_identity(3).unwrap();
 
-                assert_eq!(m.swap_elements((&0, &0), (&0, &2)), None);
+                assert_eq!(m.swap_elements((0, 0), (0, 2)), None);
                 assert_eq!(m.data, vec![0, 0, 1, 0, 1, 0, 0, 0, 1]);
             }
         }
@@ -1391,10 +1385,10 @@ mod tests {
 
             #[test]
             fn handles_errors() {
-                let mut m = Matrix::<i64>::new_identity(&7).unwrap();
+                let mut m = Matrix::<i64>::new_identity(7).unwrap();
 
-                assert_eq!(m.swap_rows(&2, &9), Some(BE::Row(9)));
-                assert_eq!(m.swap_rows(&7, &4), Some(BE::Row(7)));
+                assert_eq!(m.swap_rows(2, 9), Some(BE::Row(9)));
+                assert_eq!(m.swap_rows(7, 4), Some(BE::Row(7)));
             }
 
             #[test]
@@ -1406,7 +1400,7 @@ mod tests {
                 ])
                 .unwrap();
 
-                assert_eq!(m.swap_rows(&0, &1), None);
+                assert_eq!(m.swap_rows(0, 1), None);
                 assert_eq!(m.data, vec![1, 2, 3, 4, 5, 5, 4, 3, 2, 1, 5, 4, 3, 2, 1]);
             }
         }
@@ -1416,17 +1410,17 @@ mod tests {
 
             #[test]
             fn handles_errors() {
-                let mut m = Matrix::<u16>::new(&7, &3).unwrap();
+                let mut m = Matrix::<u16>::new(7, 3).unwrap();
 
-                assert_eq!(m.swap_columns(&0, &4), Some(BE::Column(4)));
-                assert_eq!(m.swap_columns(&10, &2), Some(BE::Column(10)));
+                assert_eq!(m.swap_columns(0, 4), Some(BE::Column(4)));
+                assert_eq!(m.swap_columns(10, 2), Some(BE::Column(10)));
             }
 
             #[test]
             fn swaps_columns() {
-                let mut m = Matrix::<u8>::new_identity(&4).unwrap();
+                let mut m = Matrix::<u8>::new_identity(4).unwrap();
 
-                assert_eq!(m.swap_columns(&0, &2), None);
+                assert_eq!(m.swap_columns(0, 2), None);
                 assert_eq!(m.data, vec![0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1]);
             }
         }
@@ -1439,7 +1433,7 @@ mod tests {
         fn scale() {
             let mut m =
                 Matrix::new_from_data(&vec![vec![1, 2, 3], vec![2, 3, 1], vec![3, 1, 2]]).unwrap();
-            m.scale(&2);
+            m.scale(2);
 
             assert_eq!(m.data, vec![2, 4, 6, 4, 6, 2, 6, 2, 4]);
         }
@@ -1451,14 +1445,14 @@ mod tests {
             fn handles_errors() {
                 let mut m = Matrix::new_from_data(&vec![vec![1]]).unwrap();
 
-                assert_eq!(m.scale_row(&4, &3), Some(BE::Row(4)));
+                assert_eq!(m.scale_row(4, 3), Some(BE::Row(4)));
             }
 
             #[test]
             fn scales_row() {
-                let mut m = Matrix::<u128>::new_identity(&2).unwrap();
+                let mut m = Matrix::<u128>::new_identity(2).unwrap();
 
-                assert_eq!(m.scale_row(&0, &3), None);
+                assert_eq!(m.scale_row(0, 3), None);
                 assert_eq!(m.data, vec![3, 0, 0, 1]);
             }
         }
@@ -1470,8 +1464,8 @@ mod tests {
             fn handles_errors() {
                 let mut m = Matrix::new_from_data(&vec![vec![1, 2], vec![2, 1]]).unwrap();
 
-                assert_eq!(m.add_scaled_row(&2, &0, &3), Some(BE::Row(2)));
-                assert_eq!(m.add_scaled_row(&1, &5, &8), Some(BE::Row(5)));
+                assert_eq!(m.add_scaled_row(2, 0, 3), Some(BE::Row(2)));
+                assert_eq!(m.add_scaled_row(1, 5, 8), Some(BE::Row(5)));
             }
 
             #[test]
@@ -1480,7 +1474,7 @@ mod tests {
                     Matrix::new_from_data(&vec![vec![1, 0, 1], vec![2, 3, 0], vec![0, 5, 9]])
                         .unwrap();
 
-                assert_eq!(m.add_scaled_row(&0, &2, &3), None);
+                assert_eq!(m.add_scaled_row(0, 2, 3), None);
                 assert_eq!(m.data, vec![1, 0, 1, 2, 3, 0, 3, 5, 12]);
             }
         }
@@ -1492,14 +1486,14 @@ mod tests {
             fn handles_errors() {
                 let mut m = Matrix::new_from_data(&vec![vec![1]]).unwrap();
 
-                assert_eq!(m.scale_column(&4, &3), Some(BE::Column(4)));
+                assert_eq!(m.scale_column(4, 3), Some(BE::Column(4)));
             }
 
             #[test]
             fn scales_column() {
-                let mut m = Matrix::<u128>::new_identity(&2).unwrap();
+                let mut m = Matrix::<u128>::new_identity(2).unwrap();
 
-                assert_eq!(m.scale_column(&0, &3), None);
+                assert_eq!(m.scale_column(0, 3), None);
                 assert_eq!(m.data, vec![3, 0, 0, 1]);
             }
         }
@@ -1511,8 +1505,8 @@ mod tests {
             fn handles_errors() {
                 let mut m = Matrix::new_from_data(&vec![vec![1, 2], vec![2, 1]]).unwrap();
 
-                assert_eq!(m.add_scaled_column(&2, &0, &3), Some(BE::Column(2)));
-                assert_eq!(m.add_scaled_column(&1, &5, &8), Some(BE::Column(5)));
+                assert_eq!(m.add_scaled_column(2, 0, 3), Some(BE::Column(2)));
+                assert_eq!(m.add_scaled_column(1, 5, 8), Some(BE::Column(5)));
             }
 
             #[test]
@@ -1521,7 +1515,7 @@ mod tests {
                     Matrix::new_from_data(&vec![vec![1, 0, 1], vec![2, 3, 0], vec![0, 5, 9]])
                         .unwrap();
 
-                assert_eq!(m.add_scaled_column(&0, &2, &3), None);
+                assert_eq!(m.add_scaled_column(0, 2, 3), None);
                 assert_eq!(m.data, vec![1, 0, 4, 2, 3, 6, 0, 5, 9]);
             }
         }
@@ -1546,23 +1540,23 @@ mod tests {
 
             #[test]
             fn handles_errors() {
-                let m1 = Matrix::<i32>::new(&5, &6).unwrap();
-                let m2 = Matrix::<i32>::new_identity(&5).unwrap();
+                let m1 = Matrix::<i32>::new(5, 6).unwrap();
+                let m2 = Matrix::<i32>::new_identity(5).unwrap();
 
-                assert_eq!(m1.minor((&3, &2)), Err(ME::SizingError(SE::NotSquare)));
-                assert_eq!(m1.minor((&5, &7)), Err(ME::SizingError(SE::NotSquare)));
-                assert_eq!(m2.minor((&7, &0)), Err(ME::BoundsError(BE::Row(7))));
-                assert_eq!(m2.minor((&1, &5)), Err(ME::BoundsError(BE::Column(5))));
-                assert_eq!(m2.minor((&6, &9)), Err(ME::BoundsError(BE::Both(6, 9))));
+                assert_eq!(m1.minor((3, 2)), Err(ME::SizingError(SE::NotSquare)));
+                assert_eq!(m1.minor((5, 7)), Err(ME::SizingError(SE::NotSquare)));
+                assert_eq!(m2.minor((7, 0)), Err(ME::BoundsError(BE::Row(7))));
+                assert_eq!(m2.minor((1, 5)), Err(ME::BoundsError(BE::Column(5))));
+                assert_eq!(m2.minor((6, 9)), Err(ME::BoundsError(BE::Both(6, 9))));
             }
 
             #[test]
             fn gets_minor() {
                 let m1 = Matrix::new_from_data(&vec![vec![3, 2], vec![1, 7]]).unwrap();
-                let m2 = Matrix::<u128>::new_identity(&3).unwrap();
+                let m2 = Matrix::<u128>::new_identity(3).unwrap();
 
-                assert_eq!(m1.minor((&1, &1)).unwrap(), 3);
-                assert_eq!(m2.minor((&0, &0)).unwrap(), 1);
+                assert_eq!(m1.minor((1, 1)).unwrap(), 3);
+                assert_eq!(m2.minor((0, 0)).unwrap(), 1);
             }
         }
 
@@ -1579,7 +1573,7 @@ mod tests {
             #[test]
             fn gets_minor_matrix() {
                 let m1 = Matrix::<u64>::new_from_data(&vec![vec![5, 3], vec![2, 9]]).unwrap();
-                let m2 = Matrix::<i32>::new_identity(&4).unwrap();
+                let m2 = Matrix::<i32>::new_identity(4).unwrap();
 
                 assert_eq!(m1.minor_matrix().unwrap().data, vec![9, 2, 3, 5]);
                 assert_eq!(m2.minor_matrix().unwrap(), m2);
@@ -1591,7 +1585,7 @@ mod tests {
 
             #[test]
             fn handles_errors() {
-                let m1 = Matrix::<i16>::new(&5, &2).unwrap();
+                let m1 = Matrix::<i16>::new(5, 2).unwrap();
                 let m2 = Matrix::new_from_data(&vec![vec![1, 2, 3], vec![3, 2, 1]]).unwrap();
 
                 assert_eq!(m1.cofactor(), None);
@@ -1607,7 +1601,7 @@ mod tests {
                     vec![4, 3, 2, 1],
                 ])
                 .unwrap();
-                let m2 = Matrix::<i8>::new_identity(&5).unwrap();
+                let m2 = Matrix::<i8>::new_identity(5).unwrap();
                 let m3 = Matrix::new_from_data(&vec![
                     vec![2, 5, 0, 8, 4],
                     vec![10, 2, 7, 2, 0],
@@ -1634,7 +1628,7 @@ mod tests {
 
             #[test]
             fn handles_errors() {
-                let m1 = Matrix::<i16>::new(&5, &2).unwrap();
+                let m1 = Matrix::<i16>::new(5, 2).unwrap();
                 let m2 = Matrix::new_from_data(&vec![vec![1, 2, 3], vec![3, 2, 1]]).unwrap();
 
                 assert_eq!(m1.adjunct(), None);
@@ -1645,7 +1639,7 @@ mod tests {
             fn creates_adjunct() {
                 let m1 = Matrix::new_from_data(&vec![vec![2, 7, 6], vec![3, 6, 9], vec![4, 8, 1]])
                     .unwrap();
-                let m2 = Matrix::<i32>::new_identity(&4).unwrap();
+                let m2 = Matrix::<i32>::new_identity(4).unwrap();
 
                 assert_eq!(
                     m1.adjunct().unwrap().data,
@@ -1660,16 +1654,16 @@ mod tests {
 
             #[test]
             fn handles_errors() {
-                let m = Matrix::<i32>::new(&7, &5).unwrap();
+                let m = Matrix::<i32>::new(7, 5).unwrap();
 
                 assert_eq!(m.determinant(), None);
             }
 
             #[test]
             fn derives_determinant() {
-                let m1 = Matrix::<u32>::new(&4, &4).unwrap();
+                let m1 = Matrix::<u32>::new(4, 4).unwrap();
                 let m2 = Matrix::new_from_data(&vec![vec![1, 2], vec![5, 7]]).unwrap();
-                let m3 = Matrix::<i16>::new_identity(&9).unwrap();
+                let m3 = Matrix::<i16>::new_identity(9).unwrap();
 
                 assert_eq!(m1.determinant(), Some(0));
                 assert_eq!(m2.determinant(), Some(-3));
@@ -1683,7 +1677,7 @@ mod tests {
             #[test]
             fn handles_errors() {
                 let m1 = Matrix::new_from_data(&vec![vec![1, 4], vec![2, 8]]).unwrap();
-                let m2 = Matrix::<i16>::new(&4, &5).unwrap();
+                let m2 = Matrix::<i16>::new(4, 5).unwrap();
 
                 assert_eq!(m1.inverse(), Err(IE::InvalidDeterminant));
                 assert_eq!(m2.inverse(), Err(IE::NotSquare));
@@ -1697,7 +1691,7 @@ mod tests {
                     vec![0f32, 1f32, 0f32],
                 ])
                 .unwrap();
-                let m2 = Matrix::<i8>::new_identity(&6).unwrap();
+                let m2 = Matrix::<i8>::new_identity(6).unwrap();
                 let m3 = Matrix::new_from_data(&vec![
                     vec![1f32, -1f32, 1f32],
                     vec![2f32, 3f32, 0f32],
@@ -1732,10 +1726,10 @@ mod tests {
 
         #[test]
         fn debug() {
-            let m1 = Matrix::<u8>::new(&1, &1).unwrap();
-            let m2 = Matrix::<i16>::new(&1, &7).unwrap();
-            let m3 = Matrix::<u32>::new(&5, &1).unwrap();
-            let m4 = Matrix::<i8>::new(&3, &8).unwrap();
+            let m1 = Matrix::<u8>::new(1, 1).unwrap();
+            let m2 = Matrix::<i16>::new(1, 7).unwrap();
+            let m3 = Matrix::<u32>::new(5, 1).unwrap();
+            let m4 = Matrix::<i8>::new(3, 8).unwrap();
 
             assert_eq!("[0]", format!("{:?}", m1));
             assert_eq!("[0, 0, 0, 0, 0, 0, 0]", format!("{:?}", m2));
@@ -1756,26 +1750,26 @@ mod tests {
             ])
             .unwrap();
 
-            assert_eq!(m[(&3, &4)], 4);
-            assert_eq!(m[(&1, &2)], 5);
-            assert_eq!(m[(&3, &1)], 7);
-            assert_eq!(m[(&0, &3)], 2);
+            assert_eq!(m[(3, 4)], 4);
+            assert_eq!(m[(1, 2)], 5);
+            assert_eq!(m[(3, 1)], 7);
+            assert_eq!(m[(0, 3)], 2);
         }
 
         #[test]
         fn index_mut() {
-            let mut m = Matrix::<u8>::new(&3, &2).unwrap();
+            let mut m = Matrix::<u8>::new(3, 2).unwrap();
 
-            m[(&1, &0)] = 5;
-            m[(&2, &1)] = 3;
-            m[(&0, &0)] = 1;
+            m[(1, 0)] = 5;
+            m[(2, 1)] = 3;
+            m[(0, 0)] = 1;
             assert_eq!(m.data, vec![1, 0, 5, 0, 0, 3]);
         }
 
         #[test]
         fn add_assign() {
-            let mut m1 = Matrix::<i8>::new(&4, &4).unwrap();
-            let m2 = Matrix::<i8>::new_identity(&4).unwrap();
+            let mut m1 = Matrix::<i8>::new(4, 4).unwrap();
+            let m2 = Matrix::<i8>::new_identity(4).unwrap();
             let m3 = Matrix::new_from_data(&vec![
                 vec![1, 2, 3, 4],
                 vec![5, 6, 7, 8],
@@ -1801,10 +1795,10 @@ mod tests {
 
             #[test]
             fn handles_errors() {
-                let m1 = Matrix::<u8>::new(&4, &4).unwrap();
-                let m2 = Matrix::<u8>::new(&3, &4).unwrap();
-                let m3 = Matrix::<u8>::new(&4, &5).unwrap();
-                let m4 = Matrix::<u8>::new(&3, &5).unwrap();
+                let m1 = Matrix::<u8>::new(4, 4).unwrap();
+                let m2 = Matrix::<u8>::new(3, 4).unwrap();
+                let m3 = Matrix::<u8>::new(4, 5).unwrap();
+                let m4 = Matrix::<u8>::new(3, 5).unwrap();
 
                 assert_eq!(&m1 + &m2, Err(SE::Row(3)));
                 assert_eq!(&m1 + &m3, Err(SE::Column(5)));
@@ -1813,10 +1807,10 @@ mod tests {
 
             #[test]
             fn adds() {
-                let m = Matrix::<i8>::new_identity(&4).unwrap();
+                let m = Matrix::<i8>::new_identity(4).unwrap();
 
                 assert_eq!(
-                    (&m + &Matrix::<i8>::new(&4, &4).unwrap()).unwrap().data,
+                    (&m + &Matrix::<i8>::new(4, 4).unwrap()).unwrap().data,
                     vec![1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
                 );
                 assert_eq!(
@@ -1836,8 +1830,8 @@ mod tests {
 
         #[test]
         fn sub_assign() {
-            let m1 = Matrix::<i8>::new(&4, &4).unwrap();
-            let mut m2 = Matrix::<i8>::new_identity(&4).unwrap();
+            let m1 = Matrix::<i8>::new(4, 4).unwrap();
+            let mut m2 = Matrix::<i8>::new_identity(4).unwrap();
             let m3 = Matrix::new_from_data(&vec![
                 vec![1, 2, 3, 4],
                 vec![5, 6, 7, 8],
@@ -1863,10 +1857,10 @@ mod tests {
 
             #[test]
             fn handles_errors() {
-                let m1 = Matrix::<u8>::new(&4, &4).unwrap();
-                let m2 = Matrix::<u8>::new(&3, &4).unwrap();
-                let m3 = Matrix::<u8>::new(&4, &5).unwrap();
-                let m4 = Matrix::<u8>::new(&3, &5).unwrap();
+                let m1 = Matrix::<u8>::new(4, 4).unwrap();
+                let m2 = Matrix::<u8>::new(3, 4).unwrap();
+                let m3 = Matrix::<u8>::new(4, 5).unwrap();
+                let m4 = Matrix::<u8>::new(3, 5).unwrap();
 
                 assert_eq!(&m1 - &m2, Err(SE::Row(3)));
                 assert_eq!(&m1 - &m3, Err(SE::Column(5)));
@@ -1875,10 +1869,10 @@ mod tests {
 
             #[test]
             fn subs() {
-                let m = Matrix::<i8>::new_identity(&4).unwrap();
+                let m = Matrix::<i8>::new_identity(4).unwrap();
 
                 assert_eq!(
-                    (&m - &Matrix::<i8>::new(&4, &4).unwrap()).unwrap().data,
+                    (&m - &Matrix::<i8>::new(4, 4).unwrap()).unwrap().data,
                     vec![1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
                 );
                 assert_eq!(
@@ -1901,8 +1895,8 @@ mod tests {
 
             #[test]
             fn handles_errors() {
-                let m1 = Matrix::<u16>::new(&2, &5).unwrap();
-                let m2 = Matrix::<u16>::new(&4, &2).unwrap();
+                let m1 = Matrix::<u16>::new(2, 5).unwrap();
+                let m2 = Matrix::<u16>::new(4, 2).unwrap();
 
                 assert_eq!(m1 * m2, Err(SE::Row(4)));
             }
@@ -1922,7 +1916,7 @@ mod tests {
                     vec![2, 4, 6, 5],
                 ])
                 .unwrap();
-                let m3 = Matrix::<i8>::new_identity(&3).unwrap();
+                let m3 = Matrix::<i8>::new_identity(3).unwrap();
 
                 assert_eq!(
                     &m1 * &m2,
@@ -1940,7 +1934,7 @@ mod tests {
 
         #[test]
         fn neg() {
-            let m1 = Matrix::<i32>::new_identity(&3).unwrap();
+            let m1 = Matrix::<i32>::new_identity(3).unwrap();
 
             assert_eq!(m1.neg().data, vec![-1, 0, 0, 0, -1, 0, 0, 0, -1]);
         }
