@@ -650,12 +650,43 @@ where
         )
     }
 
-    /// Returns the adjoint scaled by the inverse of the derminant.
+    /// Returns the adjunct scaled by the inverse of the determinant.
     ///
     /// # Errors
     ///
-    /// Matrix must be square
+    /// Matrix must be square, determinant must not be zero
     pub fn inverse(&self) -> Result<Self, IE>
+    where
+        T: Sub<Output = T>
+            + Mul<Output = T>
+            + Div<Output = T>
+            + Neg<Output = T>
+            + Zero
+            + One
+            + PartialEq,
+    {
+        let det = self.determinant().ok_or(IE::NotSquare)?;
+
+        if det == T::zero() {
+            return Err(IE::InvalidDeterminant);
+        }
+
+        let mut out = self.adjunct().unwrap();
+        out.scale(T::one() / det);
+
+        Ok(out)
+    }
+
+    /// Returns the adjunct scaled by the inverse of the derminant.
+    ///
+    /// # Errors
+    ///
+    /// Matrix must be square, determinant must not be zero
+    ///
+    /// # Warning
+    ///
+    /// May not work on integers, or other types where a / b * b does not always equal a
+    pub fn fast_inverse(&self) -> Result<Self, IE>
     where
         T: Copy + Zero + One + Div<Output = T> + Neg<Output = T> + PartialEq,
     {
@@ -1685,6 +1716,43 @@ mod tests {
 
             #[test]
             fn derives_inverse() {
+                let m1 = Matrix::new_from_data(&vec![vec![1, 0, 2], vec![0, 4, 1], vec![0, 1, 0]])
+                    .unwrap();
+                let m2 = Matrix::<i8>::new_identity(6).unwrap();
+                let m3 =
+                    Matrix::new_from_data(&vec![vec![1, -1, 1], vec![2, 3, 0], vec![0, -2, 1]])
+                        .unwrap();
+
+                assert_eq!(
+                    m1.inverse(),
+                    Ok(Matrix {
+                        data: vec![1, -2, 8, 0, 0, 1, 0, 1, -4],
+                        rows: 3,
+                        columns: 3
+                    })
+                );
+                assert_eq!(m2.inverse(), Ok(m2));
+                assert_eq!(
+                    m3.inverse().unwrap().data,
+                    vec![3, -1, -3, -2, 1, 2, -4, 2, 5]
+                );
+            }
+        }
+
+        mod fast_inverse {
+            use super::*;
+
+            #[test]
+            fn handles_errors() {
+                let m1 = Matrix::new_from_data(&vec![vec![1, 4], vec![2, 8]]).unwrap();
+                let m2 = Matrix::<i16>::new(4, 5).unwrap();
+
+                assert_eq!(m1.fast_inverse(), Err(IE::InvalidDeterminant));
+                assert_eq!(m2.fast_inverse(), Err(IE::NotSquare));
+            }
+
+            #[test]
+            fn derives_inverse() {
                 let m1 = Matrix::new_from_data(&vec![
                     vec![1f32, 0f32, 2f32],
                     vec![0f32, 4f32, 1f32],
@@ -1700,16 +1768,16 @@ mod tests {
                 .unwrap();
 
                 assert_eq!(
-                    m1.inverse(),
+                    m1.fast_inverse(),
                     Ok(Matrix {
                         data: vec![1f32, -2f32, 8f32, 0f32, 0f32, 1f32, 0f32, 1f32, -4f32],
                         rows: 3,
                         columns: 3
                     })
                 );
-                assert_eq!(m2.inverse(), Ok(m2));
+                assert_eq!(m2.fast_inverse(), Ok(m2));
                 assert_eq!(
-                    m3.inverse()
+                    m3.fast_inverse()
                         .unwrap()
                         .data
                         .iter()
