@@ -9,7 +9,7 @@ use std::{
     ops::{Add, AddAssign, Div, Index, IndexMut, Mul, Neg, Range, Sub, SubAssign},
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Matrix<T>
 where
     T: Copy,
@@ -657,24 +657,61 @@ where
     /// Matrix must be square
     pub fn inverse(&self) -> Result<Self, IE>
     where
-        T: Sub<Output = T>
-            + Mul<Output = T>
-            + Div<Output = T>
-            + Neg<Output = T>
-            + Zero
-            + One
-            + PartialEq,
+        T: Copy + Zero + One + Div<Output = T> + Neg<Output = T> + PartialEq,
     {
-        let det = self.determinant().ok_or(IE::NotSquare)?;
-
-        if det == T::zero() {
-            return Err(IE::InvalidDeterminant);
+        if !self.is_square() {
+            return Err(IE::NotSquare);
         }
 
-        let mut out = self.adjunct().unwrap();
-        out.scale(&(T::one() / det));
+        let mut clone = self.clone();
+        let mut out = Matrix::new_identity(&clone.rows).unwrap();
+
+        for c in 0..clone.rows {
+            if !T::is_one(&clone[(&c, &c)]) {
+                if T::is_zero(&clone[(&c, &c)]) {
+                    return Err(IE::InvalidDeterminant);
+                }
+                let factor = T::one() / clone[(&c, &c)];
+                clone.scale_row(&c, &factor);
+                out.scale_row(&c, &factor);
+            }
+
+            for r in 0..c {
+                if !T::is_zero(&clone[(&r, &c)]) {
+                    let factor = clone[(&r, &c)].neg();
+                    clone.add_scaled_row(&c, &r, &factor);
+                    out.add_scaled_row(&c, &r, &factor);
+                }
+            }
+
+            for r in (c + 1)..clone.rows {
+                if !T::is_zero(&clone[(&r, &c)]) {
+                    let factor = clone[(&r, &c)].neg();
+                    clone.add_scaled_row(&c, &r, &factor);
+                    out.add_scaled_row(&c, &r, &factor);
+                }
+            }
+        }
 
         Ok(out)
+    }
+}
+
+impl<T> Debug for Matrix<T>
+where
+    T: Copy + Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.rows == 1 {
+            return write!(f, "{:?}", self.data);
+        }
+
+        writeln!(f, "{:?}", self.get_row(&0).unwrap())?;
+        let middle = self.get_rows(1..(self.rows - 1)).unwrap();
+        for row in middle {
+            writeln!(f, "{:?}", row)?;
+        }
+        write!(f, "{:?}", self.get_row(&(self.rows - 1)).unwrap())
     }
 }
 
@@ -1654,25 +1691,60 @@ mod tests {
 
             #[test]
             fn derives_inverse() {
-                let m1 = Matrix::new_from_data(&vec![vec![1, 0, 2], vec![0, 4, 1], vec![0, 1, 0]])
-                    .unwrap();
+                let m1 = Matrix::new_from_data(&vec![
+                    vec![1f32, 0f32, 2f32],
+                    vec![0f32, 4f32, 1f32],
+                    vec![0f32, 1f32, 0f32],
+                ])
+                .unwrap();
                 let m2 = Matrix::<i8>::new_identity(&6).unwrap();
+                let m3 = Matrix::new_from_data(&vec![
+                    vec![1f32, -1f32, 1f32],
+                    vec![2f32, 3f32, 0f32],
+                    vec![0f32, -2f32, 1f32],
+                ])
+                .unwrap();
 
                 assert_eq!(
                     m1.inverse(),
                     Ok(Matrix {
-                        data: vec![1, -2, 8, 0, 0, 1, 0, 1, -4],
+                        data: vec![1f32, -2f32, 8f32, 0f32, 0f32, 1f32, 0f32, 1f32, -4f32],
                         rows: 3,
                         columns: 3
                     })
                 );
                 assert_eq!(m2.inverse(), Ok(m2));
+                assert_eq!(
+                    m3.inverse()
+                        .unwrap()
+                        .data
+                        .iter()
+                        .map(|f| f.round())
+                        .collect::<Vec<_>>(),
+                    vec![3f32, -1f32, -3f32, -2f32, 1f32, 2f32, -4f32, 2f32, 5f32]
+                );
             }
         }
     }
 
     mod traits {
         use super::*;
+
+        #[test]
+        fn debug() {
+            let m1 = Matrix::<u8>::new(&1, &1).unwrap();
+            let m2 = Matrix::<i16>::new(&1, &7).unwrap();
+            let m3 = Matrix::<u32>::new(&5, &1).unwrap();
+            let m4 = Matrix::<i8>::new(&3, &8).unwrap();
+
+            assert_eq!("[0]", format!("{:?}", m1));
+            assert_eq!("[0, 0, 0, 0, 0, 0, 0]", format!("{:?}", m2));
+            assert_eq!("[0]\n[0]\n[0]\n[0]\n[0]", format!("{:?}", m3));
+            assert_eq!(
+                "[0, 0, 0, 0, 0, 0, 0, 0]\n[0, 0, 0, 0, 0, 0, 0, 0]\n[0, 0, 0, 0, 0, 0, 0, 0]",
+                format!("{:?}", m4)
+            );
+        }
 
         #[test]
         fn index() {
