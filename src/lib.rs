@@ -165,6 +165,11 @@ where
         self.columns
     }
 
+    /// Returns the number of items in the matrix.
+    pub fn size(&self) -> usize {
+        self.data.len()
+    }
+
     /// Returns whether the matrix has the same number of rows and columns.
     pub fn is_square(&self) -> bool {
         self.rows == self.columns
@@ -217,7 +222,7 @@ where
     }
 }
 
-//muts
+// mut getters
 impl<T> Matrix<T>
 where
     T: Copy,
@@ -493,6 +498,24 @@ where
 
         None
     }
+
+    pub fn resize(&mut self, bounds: (usize, usize)) -> Option<BE> {
+        if bounds.0 == 0 {
+            return Some(BE::Row(0));
+        }
+
+        if bounds.1 == 0 {
+            return Some(BE::Column(0));
+        }
+
+        if bounds.0 * bounds.1 != self.size() {
+            return Some(BE::Both(bounds.0, bounds.1));
+        }
+
+        self.rows = bounds.0;
+        self.columns = bounds.1;
+        None
+    }
 }
 
 // derivers
@@ -725,6 +748,31 @@ where
         }
 
         Ok(out)
+    }
+
+    /// Returns a new matrix with the same data, but rows and columns of bounds or the amount of data such bounds would fit.
+    ///
+    /// Errors
+    ///
+    /// Matrix of size bounds must fit the same amount of data as this.
+    pub fn as_resize(&self, bounds: (usize, usize)) -> Result<Matrix<T>, BE> {
+        if bounds.0 == 0 {
+            return Err(BE::Row(0));
+        }
+
+        if bounds.1 == 0 {
+            return Err(BE::Column(0));
+        }
+
+        if bounds.0 * bounds.1 != self.size() {
+            return Err(BE::Both(bounds.0, bounds.1));
+        }
+
+        Ok(Matrix {
+            data: self.data.clone(),
+            rows: bounds.0,
+            columns: bounds.1,
+        })
     }
 }
 
@@ -1203,6 +1251,15 @@ mod tests {
         }
 
         #[test]
+        fn size() {
+            let m1 = Matrix::<i32>::new(9, 16).unwrap();
+            let m2 = Matrix::<u32>::new_identity(12).unwrap();
+
+            assert_eq!(m1.size(), 144);
+            assert_eq!(m2.size(), 144);
+        }
+
+        #[test]
         fn is_square() {
             let m1 = Matrix::<u16>::new(6, 2).unwrap();
             let m2 = Matrix::<i8>::new(3, 3).unwrap();
@@ -1316,7 +1373,7 @@ mod tests {
         }
     }
 
-    mod muts {
+    mod mut_getters {
         use super::*;
 
         #[test]
@@ -1548,6 +1605,42 @@ mod tests {
 
                 assert_eq!(m.add_scaled_column(0, 2, 3), None);
                 assert_eq!(m.data, vec![1, 0, 4, 2, 3, 6, 0, 5, 9]);
+            }
+        }
+
+        mod resize {
+            use super::*;
+
+            #[test]
+            fn handles_errors() {
+                let mut m = Matrix::new_from_data(&vec![vec![2, 5, 3], vec![9, 1, 6]]).unwrap();
+
+                assert_eq!(m.resize((0, 5)), Some(BE::Row(0)));
+                assert_eq!(m.resize((2, 0)), Some(BE::Column(0)));
+                assert_eq!(m.resize((3, 4)), Some(BE::Both(3, 4)));
+            }
+
+            #[test]
+            fn resizes() {
+                let mut m = Matrix::new_from_data(&vec![vec![2, 5, 3], vec![9, 1, 6]]).unwrap();
+
+                assert_eq!(m.resize((3, 2)), None);
+                assert_eq!(m.rows, 3);
+                assert_eq!(m.columns, 2);
+
+                assert_eq!(m.resize((6, 1)), None);
+                assert_eq!(m.rows, 6);
+                assert_eq!(m.columns, 1);
+
+                assert_eq!(m.resize((1, 6)), None);
+                assert_eq!(
+                    m,
+                    Matrix {
+                        data: vec![2, 5, 3, 9, 1, 6],
+                        rows: 1,
+                        columns: 6
+                    }
+                );
             }
         }
     }
@@ -1784,6 +1877,52 @@ mod tests {
                         .map(|f| f.round())
                         .collect::<Vec<_>>(),
                     vec![3f32, -1f32, -3f32, -2f32, 1f32, 2f32, -4f32, 2f32, 5f32]
+                );
+            }
+        }
+
+        mod as_resize {
+            use super::*;
+
+            #[test]
+            fn handles_errors() {
+                let m = Matrix::new_from_data(&vec![vec![2, 5, 3], vec![9, 1, 6]]).unwrap();
+
+                assert_eq!(m.as_resize((0, 5)), Err(BE::Row(0)));
+                assert_eq!(m.as_resize((2, 0)), Err(BE::Column(0)));
+                assert_eq!(m.as_resize((3, 4)), Err(BE::Both(3, 4)));
+            }
+
+            #[test]
+            fn resizes() {
+                let m1 = Matrix::new_from_data(&vec![vec![2, 5, 3], vec![9, 1, 6]]).unwrap();
+                let m2 = m1.as_resize((3, 2)).unwrap();
+                let m3 = m1.as_resize((6, 1)).unwrap();
+                let m4 = m1.as_resize((1, 6)).unwrap();
+
+                assert_eq!(
+                    m2,
+                    Matrix {
+                        data: vec![2, 5, 3, 9, 1, 6],
+                        rows: 3,
+                        columns: 2
+                    }
+                );
+                assert_eq!(
+                    m3,
+                    Matrix {
+                        data: vec![2, 5, 3, 9, 1, 6],
+                        rows: 6,
+                        columns: 1
+                    }
+                );
+                assert_eq!(
+                    m4,
+                    Matrix {
+                        data: vec![2, 5, 3, 9, 1, 6],
+                        rows: 1,
+                        columns: 6
+                    }
                 );
             }
         }
