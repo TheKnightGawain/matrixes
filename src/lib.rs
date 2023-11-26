@@ -6,7 +6,7 @@ pub use errors::{BoundsError as BE, InversionError as IE, MatrixError as ME, Siz
 use num::{One, Zero};
 use std::{
     fmt::Debug,
-    ops::{Add, AddAssign, Div, Index, IndexMut, Mul, Neg, Range, Sub, SubAssign},
+    ops::{Add, AddAssign, Div, Index, IndexMut, Mul, Neg, Sub, SubAssign},
 };
 
 #[derive(Clone, PartialEq, Eq)]
@@ -193,7 +193,7 @@ where
     /// # Error
     ///
     /// range cannot refer to a row that does not exist.
-    pub fn get_rows(&self, range: Range<usize>) -> Option<Vec<Vec<&T>>> {
+    pub fn get_rows(&self, range: impl Iterator<Item = usize>) -> Option<Vec<Vec<&T>>> {
         range.map(|r| self.get_row(r)).collect::<Option<Vec<_>>>()
     }
 
@@ -215,7 +215,7 @@ where
     /// # Errors
     ///
     /// range cannot refer to a column that does not exist.
-    pub fn get_columns(&self, range: Range<usize>) -> Option<Vec<Vec<&T>>> {
+    pub fn get_columns(&self, range: impl Iterator<Item = usize>) -> Option<Vec<Vec<&T>>> {
         range
             .map(|c| self.get_column(c))
             .collect::<Option<Vec<Vec<&T>>>>()
