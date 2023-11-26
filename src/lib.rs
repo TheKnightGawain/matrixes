@@ -499,6 +499,11 @@ where
         None
     }
 
+    /// Changes the bounds of the matrix while maintaining the data.
+    ///
+    /// # Errors
+    ///
+    /// bounds must have the same size as the matrix
     pub fn resize(&mut self, bounds: (usize, usize)) -> Option<BE> {
         if bounds.0 == 0 {
             return Some(BE::Row(0));
@@ -544,11 +549,57 @@ where
             return Some(column);
         }
 
+        self.columns -= 1;
         for r in 0..self.rows {
-            self.data.remove(r * (self.columns - 1) + column);
+            self.data.remove(r * self.columns + column);
         }
 
-        self.columns -= 1;
+        None
+    }
+
+    /// Adds a row with an index of row and values of data.
+    ///
+    /// Errors
+    ///
+    ///
+    pub fn add_row(&mut self, row: usize, data: &[T]) -> Option<BE> {
+        if row == self.rows && data.len() != self.columns {
+            return Some(BE::Both(row, data.len()));
+        }
+
+        if row == self.rows {
+            return Some(BE::Row(row));
+        }
+
+        if data.len() != self.columns {
+            return Some(BE::Column(data.len()));
+        }
+
+        self.rows += 1;
+        for (col, e) in data.iter().enumerate() {
+            self.data.insert((row * self.columns) + col, *e);
+        }
+
+        None
+    }
+
+    pub fn add_column(&mut self, column: usize, data: &[T]) -> Option<BE> {
+        if column == self.rows && data.len() != self.columns {
+            return Some(BE::Both(data.len(), column));
+        }
+
+        if column == self.rows {
+            return Some(BE::Column(column));
+        }
+
+        if data.len() != self.columns {
+            return Some(BE::Row(data.len()));
+        }
+
+        self.columns += 1;
+        for (row, e) in data.iter().enumerate() {
+            self.data.insert(row * self.columns + column, *e);
+        }
 
         None
     }
@@ -700,6 +751,10 @@ where
     /// # Errors
     ///
     /// Matrix must be square, determinant must not be zero
+    ///
+    /// # Warning
+    ///
+    /// May give an incorrect result on types with strong rounding on division such as integers
     pub fn inverse(&self) -> Result<Self, IE>
     where
         T: Sub<Output = T>
@@ -730,7 +785,7 @@ where
     ///
     /// # Warning
     ///
-    /// May not work on integers, or other types where a / b * b does not always equal a
+    /// May give an incorrect result or unwarrented error on types with strong rounding on division such as integers
     pub fn fast_inverse(&self) -> Result<Self, IE>
     where
         T: Copy + Zero + One + Div<Output = T> + Neg<Output = T> + PartialEq,
