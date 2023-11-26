@@ -516,6 +516,42 @@ where
         self.columns = bounds.1;
         None
     }
+
+    /// Removes the data of the selected row and changes to bounds to match
+    ///
+    /// Errors
+    ///
+    /// row must refer to a row that exists
+    pub fn remove_row(&mut self, row: usize) -> Option<usize> {
+        if row >= self.rows {
+            return Some(row);
+        }
+
+        self.data
+            .drain((row * self.columns)..((row + 1) * self.columns));
+        self.rows -= 1;
+
+        None
+    }
+
+    /// Removes the data of the selected column and changes to bounds to match
+    ///
+    /// Errors
+    ///
+    /// column must refer to a row that exists
+    pub fn remove_column(&mut self, column: usize) -> Option<usize> {
+        if column >= self.columns {
+            return Some(column);
+        }
+
+        for r in 0..self.rows {
+            self.data.remove(r * (self.columns - 1) + column);
+        }
+
+        self.columns -= 1;
+
+        None
+    }
 }
 
 // derivers
@@ -555,34 +591,20 @@ where
             return Err(BE::Both(element.0, element.1).into());
         }
 
+        if element.0 >= self.rows {
+            return Err(BE::Row(element.0).into());
+        }
+
         if element.1 >= self.columns {
             return Err(BE::Column(element.1).into());
         }
 
-        let extract_from_row = |r: &Vec<&T>| -> Vec<T> {
-            let mut out: Vec<T> = r[..element.1].iter().map(|&e| *e).collect();
-            out.append(&mut r[element.1 + 1..].iter().map(|&e| *e).collect());
-            out
-        };
+        let mut copy = self.clone();
 
-        let mut data: Vec<Vec<T>> = match self.get_rows(0..element.0) {
-            Some(t) => t,
-            None => return Err(BE::Row(element.0).into()),
-        }
-        .iter()
-        .map(extract_from_row)
-        .collect();
+        copy.remove_row(element.0);
+        copy.remove_column(element.1);
 
-        data.append(
-            &mut self
-                .get_rows(element.0 + 1..self.rows)
-                .unwrap()
-                .iter()
-                .map(&extract_from_row)
-                .collect(),
-        );
-
-        Ok(Matrix::new_from_data(&data)?.determinant().unwrap())
+        Ok(copy.determinant().unwrap())
     }
 
     /// Returns a new matrix constructed of the minors of each element of the base matrix.
@@ -1639,6 +1661,83 @@ mod tests {
                         data: vec![2, 5, 3, 9, 1, 6],
                         rows: 1,
                         columns: 6
+                    }
+                );
+            }
+        }
+
+        mod remove_row {
+            use super::*;
+
+            #[test]
+            fn handles_errors() {
+                let mut m = Matrix::<u64>::new(10, 7).unwrap();
+
+                assert_eq!(m.remove_row(19), Some(19));
+                assert_eq!(m.remove_row(10), Some(10));
+            }
+
+            #[test]
+            fn removes_row() {
+                let mut m = Matrix::new_from_data(&vec![
+                    vec![1, 2, 3],
+                    vec![4, 5, 6],
+                    vec![7, 8, 9],
+                    vec![10, 11, 10],
+                    vec![9, 8, 7],
+                    vec![6, 5, 4],
+                    vec![3, 2, 1],
+                ])
+                .unwrap();
+
+                assert_eq!(m.remove_row(2), None);
+                assert_eq!(
+                    m,
+                    Matrix {
+                        data: vec![1, 2, 3, 4, 5, 6, 10, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
+                        rows: 6,
+                        columns: 3
+                    }
+                );
+                assert_eq!(m.remove_row(5), None);
+                assert_eq!(
+                    m,
+                    Matrix {
+                        data: vec![1, 2, 3, 4, 5, 6, 10, 11, 10, 9, 8, 7, 6, 5, 4],
+                        rows: 5,
+                        columns: 3
+                    }
+                );
+            }
+        }
+
+        mod remove_column {
+            use super::*;
+
+            #[test]
+            fn handles_errors() {
+                let mut m = Matrix::new_with_data(
+                    5,
+                    vec![3, 5, 4, 6, 8, 6, 3, 2, 1, 6, 8, 5, 8, 4, 5, 6, 7, 3, 4, 0],
+                )
+                .unwrap();
+
+                assert_eq!(m.remove_column(0), None);
+                assert_eq!(
+                    m,
+                    Matrix {
+                        data: vec![5, 4, 6, 8, 3, 2, 1, 6, 5, 8, 4, 5, 7, 3, 4, 0],
+                        rows: 4,
+                        columns: 4
+                    }
+                );
+                assert_eq!(m.remove_column(2), None);
+                assert_eq!(
+                    m,
+                    Matrix {
+                        data: vec![5, 4, 8, 3, 2, 6, 5, 8, 5, 7, 3, 0],
+                        rows: 4,
+                        columns: 3
                     }
                 );
             }
