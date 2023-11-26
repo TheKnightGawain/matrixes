@@ -125,7 +125,7 @@ where
             return Err(SE::Row(0));
         }
 
-        let mut elements: Vec<T> = Vec::new();
+        let mut elements: Vec<T> = Vec::with_capacity(rows * columns);
 
         for r in data {
             if r.len() != columns {
@@ -561,13 +561,13 @@ where
     ///
     /// Errors
     ///
-    ///
-    pub fn add_row(&mut self, row: usize, data: &[T]) -> Option<BE> {
-        if row == self.rows && data.len() != self.columns {
+    /// row must refer to a row adjacent to a row that exists, data must have the same number of elements as there are columns.
+    pub fn insert_row(&mut self, row: usize, data: &[T]) -> Option<BE> {
+        if row > self.rows && data.len() != self.columns {
             return Some(BE::Both(row, data.len()));
         }
 
-        if row == self.rows {
+        if row > self.rows {
             return Some(BE::Row(row));
         }
 
@@ -583,16 +583,21 @@ where
         None
     }
 
-    pub fn add_column(&mut self, column: usize, data: &[T]) -> Option<BE> {
-        if column == self.rows && data.len() != self.columns {
+    /// Adds a row with an index of row and values of data.
+    ///
+    /// Errors
+    ///
+    /// column must refer to a column adjacent to a row that exists, data must have the same number of elements as there are rows.
+    pub fn insert_column(&mut self, column: usize, data: &[T]) -> Option<BE> {
+        if column > self.columns && data.len() != self.columns {
             return Some(BE::Both(data.len(), column));
         }
 
-        if column == self.rows {
+        if column > self.rows {
             return Some(BE::Column(column));
         }
 
-        if data.len() != self.columns {
+        if data.len() != self.rows {
             return Some(BE::Row(data.len()));
         }
 
@@ -1793,6 +1798,108 @@ mod tests {
                         data: vec![5, 4, 8, 3, 2, 6, 5, 8, 5, 7, 3, 0],
                         rows: 4,
                         columns: 3
+                    }
+                );
+            }
+        }
+
+        mod insert_row {
+            use super::*;
+
+            #[test]
+            fn handles_errors() {
+                let mut m = Matrix::<u128>::new(4, 7).unwrap();
+
+                assert_eq!(
+                    m.insert_row(9, &vec![1, 2, 3, 4, 5, 6, 7]),
+                    Some(BE::Row(9))
+                );
+                assert_eq!(
+                    m.insert_row(3, &vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
+                    Some(BE::Column(10))
+                );
+                assert_eq!(
+                    m.insert_row(20, &vec![3, 5, 12, 3, 56, 7, 8, 4, 2, 1, 6, 23, 1, 7]),
+                    Some(BE::Both(20, 14))
+                );
+            }
+
+            #[test]
+            fn inserts_row() {
+                let mut m = Matrix::<i8>::new_from_data(&vec![
+                    vec![1, 2, 3, 4, 5],
+                    vec![6, 7, 8, 7, 6],
+                    vec![5, 4, 3, 2, 1],
+                ])
+                .unwrap();
+
+                assert_eq!(m.insert_row(0, &vec![10, 9, 8, 7, 6]), None);
+                assert_eq!(
+                    m,
+                    Matrix {
+                        data: vec![10, 9, 8, 7, 6, 1, 2, 3, 4, 5, 6, 7, 8, 7, 6, 5, 4, 3, 2, 1],
+                        rows: 4,
+                        columns: 5
+                    }
+                );
+                assert_eq!(m.insert_row(4, &vec![2, 4, 6, 8, 10]), None);
+                assert_eq!(
+                    m,
+                    Matrix {
+                        data: vec![
+                            10, 9, 8, 7, 6, 1, 2, 3, 4, 5, 6, 7, 8, 7, 6, 5, 4, 3, 2, 1, 2, 4, 6,
+                            8, 10
+                        ],
+                        rows: 5,
+                        columns: 5
+                    }
+                );
+            }
+        }
+
+        mod insert_column {
+            use super::*;
+
+            #[test]
+            fn handles_errors() {
+                let mut m = Matrix::<u16>::new(19, 7).unwrap();
+
+                assert_eq!(m.insert_column(2, &vec![0, 3, 1]), Some(BE::Row(3)));
+                assert_eq!(
+                    m.insert_column(32, &vec![1, 2, 3, 4, 5, 6, 7]),
+                    Some(BE::Column(32))
+                );
+                assert_eq!(
+                    m.insert_column(22, &vec![2, 4, 6, 8, 1, 3, 5, 7, 9]),
+                    Some(BE::Both(9, 22))
+                );
+            }
+
+            #[test]
+            fn inserts_column() {
+                let mut m = Matrix::new_from_data(&vec![
+                    vec![1, 4, 7, 10],
+                    vec![2, 5, 8, 11],
+                    vec![3, 6, 9, 12],
+                ])
+                .unwrap();
+
+                assert_eq!(m.insert_column(2, &vec![0, 0, 0]), None);
+                assert_eq!(
+                    m,
+                    Matrix {
+                        data: vec![1, 4, 0, 7, 10, 2, 5, 0, 8, 11, 3, 6, 0, 9, 12],
+                        rows: 3,
+                        columns: 5
+                    }
+                );
+                assert_eq!(m.insert_column(2, &vec![0, 0, 0]), None);
+                assert_eq!(
+                    m,
+                    Matrix {
+                        data: vec![1, 4, 0, 0, 7, 10, 2, 5, 0, 0, 8, 11, 3, 6, 0, 0, 9, 12],
+                        rows: 3,
+                        columns: 6
                     }
                 );
             }
