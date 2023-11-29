@@ -80,7 +80,7 @@ where
         })
     }
 
-    /// Creates a matrix with the specified columns from data, which must be in row-major order.
+    /// Returns a matrix with raw data of data, and columns of columns or a sizing error.
     ///
     /// # Errors
     ///
@@ -111,7 +111,7 @@ where
     ///
     /// # Errors
     ///
-    /// data must have elements and elements must the same length
+    /// data must have elements and elements must the same length.
     pub fn new_from_data(data: &[Vec<T>]) -> Result<Self, SE> {
         let rows = data.len();
 
@@ -150,17 +150,17 @@ impl<T> Matrix<T>
 where
     T: Copy,
 {
-    /// Returns the data as a vec of references.
+    /// Returns the data as a shared slice.
     pub fn data(&self) -> &[T] {
         &self.data
     }
 
-    /// Returns the row count.
+    /// Returns the number of rows.
     pub fn rows(&self) -> usize {
         self.rows
     }
 
-    /// Returns the column count.
+    /// Returns the number of columns.
     pub fn columns(&self) -> usize {
         self.columns
     }
@@ -170,16 +170,16 @@ where
         self.data.len()
     }
 
-    /// Returns whether the matrix has the same number of rows and columns.
+    /// Returns whether the matrix is square in shape.
     pub fn is_square(&self) -> bool {
         self.rows == self.columns
     }
 
-    /// Returns indexed row as a vec of references.
+    /// Returns indexed row as an option to a vec of references.
     ///
     /// # Errors
     ///
-    /// index cannot reference a row that does not exist.
+    /// index must refer to a row that exists.
     pub fn get_row(&self, index: usize) -> Option<Vec<&T>> {
         if index >= self.rows {
             return None;
@@ -188,20 +188,20 @@ where
         Some((0..self.columns).map(|c| &self[(index, c)]).collect())
     }
 
-    /// Returns a vec of rows indexed by the range.
+    /// Returns an option to a vec of rows indexed by the iterator.
     ///
     /// # Error
     ///
-    /// range cannot refer to a row that does not exist.
-    pub fn get_rows(&self, range: impl Iterator<Item = usize>) -> Option<Vec<Vec<&T>>> {
-        range.map(|r| self.get_row(r)).collect::<Option<Vec<_>>>()
+    /// All elements of rows must validly index the matrix.
+    pub fn get_rows(&self, rows: impl Iterator<Item = usize>) -> Option<Vec<Vec<&T>>> {
+        rows.map(|r| self.get_row(r)).collect::<Option<Vec<_>>>()
     }
 
-    /// Returns indexed column as a vec of references.
+    /// Returns indexed column as an option to a vec of references.
     ///
-    /// # Error
+    /// # Errors
     ///
-    /// index cannot refer to a column that does not exist.
+    /// index must refer to a column that exists.
     pub fn get_column(&self, index: usize) -> Option<Vec<&T>> {
         if index >= self.columns {
             return None;
@@ -210,13 +210,13 @@ where
         Some((0..self.rows).map(|r| &self[(r, index)]).collect())
     }
 
-    /// Returns a vec of columns indexed by the range.
+    /// Returns an option to a vec of columns indexed by the iterator.
     ///
-    /// # Errors
+    /// # Error
     ///
-    /// range cannot refer to a column that does not exist.
-    pub fn get_columns(&self, range: impl Iterator<Item = usize>) -> Option<Vec<Vec<&T>>> {
-        range
+    /// All elements of columns must validly index the matrix.
+    pub fn get_columns(&self, columns: impl Iterator<Item = usize>) -> Option<Vec<Vec<&T>>> {
+        columns
             .map(|c| self.get_column(c))
             .collect::<Option<Vec<Vec<&T>>>>()
     }
@@ -227,16 +227,16 @@ impl<T> Matrix<T>
 where
     T: Copy,
 {
-    /// Returns data as a vec of mutable references.
+    /// Returns data as a mutable shared slice.
     pub fn data_mut(&mut self) -> &mut [T] {
         &mut self.data
     }
 
-    /// Returns indexed row as a vec of mutable references.
+    /// Returns indexed row as an option to a vec of mutable references.
     ///
     /// # Errors
     ///
-    /// index cannot refer to a row that does not exist.
+    /// index must refer to a row that exists.
     pub fn get_mut_row(&mut self, index: usize) -> Option<Vec<&mut T>> {
         if index >= self.rows {
             return None;
@@ -249,11 +249,11 @@ where
         )
     }
 
-    /// Returns indexed column as a vec of matable references.
+    /// Returns indexed column as an option to a vec of mutable references.
     ///
     /// # Errors
     ///
-    /// index cannot refer to a column that does not exist.
+    /// index must refer to a column that exists.
     pub fn get_mut_column(&mut self, index: usize) -> Option<Vec<&mut T>> {
         if index >= self.columns {
             return None;
@@ -274,7 +274,7 @@ impl<T> Matrix<T>
 where
     T: Copy + 'static,
 {
-    /// Swaps the indexed elements.
+    /// Swaps the indexed elements or returns an error.
     ///
     /// # Errors
     ///
@@ -311,13 +311,13 @@ where
         None
     }
 
-    /// Swaps the indexed rows.
+    /// Swaps the indexed rows or returns an error.
     ///
     /// # Errors
     ///
     /// row1 and row2 must refer to rows that exist
     pub fn swap_rows(&mut self, row1: usize, row2: usize) -> Option<BE> {
-        let first = match self.get_row(row1) {
+        let first_clone = match self.get_row(row1) {
             Some(t) => t,
             None => return Some(BE::Row(row1)),
         }
@@ -325,7 +325,7 @@ where
         .map(|&e| *e)
         .collect::<Vec<_>>();
 
-        let second = match self.get_row(row2) {
+        let second_clone = match self.get_row(row2) {
             Some(t) => t,
             None => return Some(BE::Row(row2)),
         }
@@ -333,35 +333,38 @@ where
         .map(|&e| *e)
         .collect::<Vec<_>>();
 
-        self.get_mut_row(row1)
-            .unwrap()
-            .iter_mut()
-            .zip(second.iter())
-            .for_each(|(f, s)| **f = *s);
+        let cols = self.columns;
 
-        self.get_mut_row(row2)
-            .unwrap()
-            .iter_mut()
-            .zip(first.iter())
-            .for_each(|(s, f)| **s = *f);
+        let mut first = self.get_mut_row(row1).unwrap();
+
+        for i in 0..cols {
+            *first[i] = second_clone[i];
+        }
+
+        let mut second = self.get_mut_row(row2).unwrap();
+
+        for i in 0..cols {
+            *second[i] = first_clone[i];
+        }
 
         None
     }
 
-    /// Swaps the indexed columns.
+    /// Swaps the indexed columns or returns an error.
     ///
     /// # Errors
     ///
     /// col1 and col2 must refer to columns that exist.
     pub fn swap_columns(&mut self, col1: usize, col2: usize) -> Option<BE> {
-        let first = match self.get_column(col1) {
+        let first_clone = match self.get_column(col1) {
             Some(t) => t,
             None => return Some(BE::Column(col1)),
         }
         .iter()
         .map(|&e| *e)
         .collect::<Vec<_>>();
-        let second = match self.get_column(col2) {
+
+        let second_clone = match self.get_column(col2) {
             Some(t) => t,
             None => return Some(BE::Column(col2)),
         }
@@ -369,17 +372,19 @@ where
         .map(|&e| *e)
         .collect::<Vec<_>>();
 
-        self.get_mut_column(col1)
-            .unwrap()
-            .iter_mut()
-            .zip(second.iter())
-            .for_each(|(f, s)| **f = *s);
+        let rows = self.rows;
 
-        self.get_mut_column(col2)
-            .unwrap()
-            .iter_mut()
-            .zip(first.iter())
-            .for_each(|(s, f)| **s = *f);
+        let mut first = self.get_mut_column(col1).unwrap();
+
+        for i in 0..rows {
+            *first[i] = second_clone[i];
+        }
+
+        let mut second = self.get_mut_column(col2).unwrap();
+
+        for i in 0..rows {
+            *second[i] = first_clone[i];
+        }
 
         None
     }
@@ -392,43 +397,37 @@ where
 {
     /// Multiplies each element of the matrix by factor.
     pub fn scale(&mut self, factor: T) {
-        self.data.iter_mut().for_each(|e| *e = *e * factor);
+        for e in self.data.iter_mut() {
+            *e = *e * factor
+        }
     }
 
-    /// Multiplies each element of indexed row by factor.
+    /// Multiplies each element of indexed row by factor or returns an error.
     ///
     /// # Errors
     ///
     /// row must refer to a row that exists.
-    ///
-    /// # Panics
-    ///
-    /// Multiplication by factor may panic.
     pub fn scale_row(&mut self, row: usize, factor: T) -> Option<BE> {
-        match self.get_mut_row(row) {
+        for t in match self.get_mut_row(row) {
             Some(t) => t,
             None => return Some(BE::Row(row)),
+        } {
+            *t = *t * factor;
         }
-        .iter_mut()
-        .for_each(|t| **t = **t * factor);
 
         None
     }
 
-    /// Adds source row scaled by factor to target row.
+    /// Adds source row scaled by factor to target row or returns an error.
     ///
     /// # Errors
     ///
     /// source and target must refer to rows that exist.
-    ///
-    /// # Panics
-    ///
-    /// Multiplication by factor may panic.
     pub fn add_scaled_row(&mut self, source: usize, target: usize, factor: T) -> Option<BE>
     where
         T: Add<Output = T>,
     {
-        let source_row = match self.get_row(source) {
+        let source_clone = match self.get_row(source) {
             Some(t) => t,
             None => return Some(BE::Row(source)),
         }
@@ -436,51 +435,46 @@ where
         .map(|&e| *e)
         .collect::<Vec<_>>();
 
-        match self.get_mut_row(target) {
+        let cols = self.columns;
+
+        let mut target = match self.get_mut_row(target) {
             Some(t) => t,
             None => return Some(BE::Row(target)),
+        };
+
+        for i in 0..cols {
+            *target[i] = *target[i] + (source_clone[i] * factor);
         }
-        .iter_mut()
-        .zip(source_row.iter())
-        .for_each(|(t, s)| **t = **t + (*s * factor));
 
         None
     }
 
-    /// Multiplies each element of indexed row by factor.
+    /// Multiplies each element of indexed column by factor or returns an error.
     ///
     /// # Errors
     ///
-    /// column must refer to a row that exists.
-    ///
-    /// # Panics
-    ///
-    /// Multiplication by factor may panic.
+    /// column must refer to a column that exists.
     pub fn scale_column(&mut self, column: usize, factor: T) -> Option<BE> {
-        match self.get_mut_column(column) {
+        for t in match self.get_mut_column(column) {
             Some(t) => t,
             None => return Some(BE::Column(column)),
+        } {
+            *t = *t * factor
         }
-        .iter_mut()
-        .for_each(|t| **t = **t * factor);
 
         None
     }
 
-    /// Adds source row scaled by factor to target row.
+    /// Adds source column scaled by factor to target column or returns an error.
     ///
     /// # Errors
     ///
-    /// source and target must refer to rows that exist.
-    ///
-    /// # Panics
-    ///
-    /// Multiplication by factor may panic.
+    /// source and target must refer to columns that exist.
     pub fn add_scaled_column(&mut self, source: usize, target: usize, factor: T) -> Option<BE>
     where
         T: Add<Output = T>,
     {
-        let source_row = match self.get_column(source) {
+        let source_clone = match self.get_column(source) {
             Some(t) => t,
             None => return Some(BE::Column(source)),
         }
@@ -488,23 +482,30 @@ where
         .map(|&e| *e)
         .collect::<Vec<_>>();
 
-        match self.get_mut_column(target) {
+        let rows = self.rows;
+
+        let mut target = match self.get_mut_column(target) {
             Some(t) => t,
             None => return Some(BE::Column(target)),
+        };
+
+        for i in 0..rows {
+            *target[i] = *target[i] + (source_clone[i] * factor);
         }
-        .iter_mut()
-        .zip(source_row.iter())
-        .for_each(|(t, s)| **t = **t + (*s * factor));
 
         None
     }
 
-    /// Changes the bounds of the matrix while maintaining the data.
+    /// Changes the bounds of the matrix while maintaining the data or returns an error.
     ///
     /// # Errors
     ///
     /// bounds must have the same size as the matrix
     pub fn resize(&mut self, bounds: (usize, usize)) -> Option<BE> {
+        if bounds == (0, 0) {
+            return Some(BE::Both(0, 0));
+        }
+
         if bounds.0 == 0 {
             return Some(BE::Row(0));
         }
@@ -522,7 +523,7 @@ where
         None
     }
 
-    /// Removes the data of the selected row and changes to bounds to match
+    /// Removes the data of the selected row and changes to bounds to match or returns an error.
     ///
     /// Errors
     ///
@@ -539,7 +540,7 @@ where
         None
     }
 
-    /// Removes the data of the selected column and changes to bounds to match
+    /// Removes the data of the selected column and changes to bounds to match or returns an error.
     ///
     /// Errors
     ///
@@ -557,7 +558,7 @@ where
         None
     }
 
-    /// Adds a row with an index of row and values of data.
+    /// Adds a row with an index of row and values of data or returns an error.
     ///
     /// Errors
     ///
@@ -583,7 +584,7 @@ where
         None
     }
 
-    /// Adds a row with an index of row and values of data.
+    /// Adds a row with an index of row and values of data or returns an error.
     ///
     /// Errors
     ///
@@ -605,6 +606,82 @@ where
         for (row, e) in data.iter().enumerate() {
             self.data.insert(row * self.columns + column, *e);
         }
+
+        None
+    }
+
+    /// Adds content of other into new rows below the existing data or returns an error.
+    ///
+    /// Errors
+    ///
+    /// other must have the same number of columns as the matrix.
+    pub fn join_matrix_below(&mut self, other: &Matrix<T>) -> Option<SE> {
+        if other.columns != self.columns {
+            return Some(SE::Column(other.columns));
+        }
+
+        self.rows += other.rows;
+        self.data.append(&mut other.data.clone());
+
+        None
+    }
+
+    /// Adds content of other into new rows above the existing data or returns an error.
+    ///
+    /// Errors
+    ///
+    /// other must have the same number of columns as the matrix.
+    pub fn join_matrix_above(&mut self, other: &Matrix<T>) -> Option<SE> {
+        if other.columns != self.columns {
+            return Some(SE::Column(other.columns));
+        }
+
+        self.rows += other.rows;
+        let mut clone = other.data.clone();
+        clone.append(&mut self.data);
+        self.data = clone;
+
+        None
+    }
+
+    /// Adds content of other into new columns to the left of the existing data or returns an error.
+    ///
+    /// Errors
+    ///
+    /// other must have the same number of rows as the matrix.
+    pub fn join_matrix_left(&mut self, other: &Matrix<T>) -> Option<SE> {
+        if other.rows != self.rows {
+            return Some(SE::Row(other.rows));
+        }
+
+        self.columns += other.columns;
+        for (row, chunk) in other.data.chunks(other.columns).enumerate() {
+            for (col, el) in chunk.iter().enumerate() {
+                self.data.insert(row * self.columns + col, *el);
+            }
+        }
+
+        None
+    }
+
+    /// Adds content of other into new columns to the right of the existing data or returns an error.
+    ///
+    /// Errors
+    ///
+    /// other must have the same number of rows as the matrix.
+    pub fn join_matrix_right(&mut self, other: &Matrix<T>) -> Option<SE> {
+        if other.rows != self.rows {
+            return Some(SE::Row(other.rows));
+        }
+
+        for (row, chunk) in other.data.chunks(other.columns).enumerate() {
+            let r = row + 1;
+            for (col, el) in chunk.iter().enumerate() {
+                self.data
+                    .insert(r * self.columns + row * other.columns + col, *el);
+            }
+        }
+        self.columns += other.columns;
 
         None
     }
@@ -697,11 +774,11 @@ where
     {
         let mut out = self.minor_matrix()?;
 
-        out.data.iter_mut().enumerate().for_each(|(n, e)| {
+        for (n, e) in out.data.iter_mut().enumerate() {
             if (n / self.columns + n % self.columns) % 2 == 1 {
                 *e = e.neg();
             }
-        });
+        }
 
         Some(out)
     }
@@ -921,10 +998,9 @@ where
         assert_eq!(self.rows, rhs.rows, "Mismatched rows.");
         assert_eq!(self.columns, rhs.columns, "Mismatched columns");
 
-        self.data
-            .iter_mut()
-            .zip(rhs.data.iter())
-            .for_each(|(s, o)| *s = *s + *o);
+        for (s, o) in self.data.iter_mut().zip(rhs.data.iter()) {
+            *s = *s + *o
+        }
     }
 }
 
@@ -1002,10 +1078,9 @@ where
         assert!(self.rows == rhs.rows, "Mismatched rows");
         assert!(self.columns == rhs.columns, "Mismatched columns");
 
-        self.data
-            .iter_mut()
-            .zip(rhs.data.iter())
-            .for_each(|(s, o)| *s = *s - *o);
+        for (s, o) in self.data.iter_mut().zip(rhs.data.iter()) {
+            *s = *s - *o
+        }
     }
 }
 
@@ -1900,6 +1975,118 @@ mod tests {
                         data: vec![1, 4, 0, 0, 7, 10, 2, 5, 0, 0, 8, 11, 3, 6, 0, 0, 9, 12],
                         rows: 3,
                         columns: 6
+                    }
+                );
+            }
+        }
+
+        mod join_matrix_above {
+            use super::*;
+
+            #[test]
+            fn handles_errors() {
+                let mut m1 = Matrix::<i8>::new(2, 9).unwrap();
+                let m2 = Matrix::new(3, 5).unwrap();
+
+                assert_eq!(m1.join_matrix_above(&m2), Some(SE::Column(5)));
+            }
+
+            #[test]
+            fn joins_above() {
+                let mut m1 = Matrix::new_identity(2).unwrap();
+                let m2 = Matrix::new_with_data(2, vec![2, 5]).unwrap();
+
+                assert_eq!(m1.join_matrix_above(&m2), None);
+                assert_eq!(
+                    m1,
+                    Matrix {
+                        data: vec![2, 5, 1, 0, 0, 1],
+                        columns: 2,
+                        rows: 3
+                    }
+                );
+            }
+        }
+
+        mod join_matrix_below {
+            use super::*;
+
+            #[test]
+            fn handles_errors() {
+                let mut m1 = Matrix::<i8>::new(2, 2).unwrap();
+                let m2 = Matrix::new(3, 7).unwrap();
+
+                assert_eq!(m1.join_matrix_below(&m2), Some(SE::Column(7)));
+            }
+
+            #[test]
+            fn joins_below() {
+                let mut m1 = Matrix::new_identity(2).unwrap();
+                let m2 = Matrix::new_with_data(2, vec![2, 5]).unwrap();
+
+                assert_eq!(m1.join_matrix_below(&m2), None);
+                assert_eq!(
+                    m1,
+                    Matrix {
+                        data: vec![1, 0, 0, 1, 2, 5],
+                        columns: 2,
+                        rows: 3
+                    }
+                );
+            }
+        }
+
+        mod join_matrix_left {
+            use super::*;
+
+            #[test]
+            fn handles_errors() {
+                let mut m1 = Matrix::<i8>::new(5, 1).unwrap();
+                let m2 = Matrix::new(3, 2).unwrap();
+
+                assert_eq!(m1.join_matrix_left(&m2), Some(SE::Row(3)));
+            }
+
+            #[test]
+            fn joins_left() {
+                let mut m1 = Matrix::new_identity(2).unwrap();
+                let m2 = Matrix::new_with_data(1, vec![2, 5]).unwrap();
+
+                assert_eq!(m1.join_matrix_left(&m2), None);
+                assert_eq!(
+                    m1,
+                    Matrix {
+                        data: vec![2, 1, 0, 5, 0, 1],
+                        columns: 3,
+                        rows: 2
+                    }
+                );
+            }
+        }
+
+        mod join_matrix_right {
+            use super::*;
+
+            #[test]
+            fn handles_errors() {
+                let mut m1 = Matrix::<i8>::new(8, 5).unwrap();
+                let m2 = Matrix::new(11, 11).unwrap();
+
+                assert_eq!(m1.join_matrix_right(&m2), Some(SE::Row(11)));
+            }
+
+            #[test]
+            fn joins_left() {
+                let mut m1 = Matrix::new_identity(2).unwrap();
+                let m2 = Matrix::new_with_data(1, vec![2, 5]).unwrap();
+
+                assert_eq!(m1.join_matrix_right(&m2), None);
+                assert_eq!(
+                    m1,
+                    Matrix {
+                        data: vec![1, 0, 2, 0, 1, 5],
+                        columns: 3,
+                        rows: 2
                     }
                 );
             }
