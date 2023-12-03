@@ -11,7 +11,7 @@ pub enum SizingError {
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
-pub enum BoundsError {
+pub enum IndexError {
     #[error("Row value out of bounds: {0}")]
     Row(usize),
     #[error("Column value out of bounds: {0}")]
@@ -21,11 +21,11 @@ pub enum BoundsError {
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
-pub enum MatrixError {
-    #[error("Problem with matrix size: {0}")]
-    SizingError(#[from] SizingError),
+pub enum MinorError {
+    #[error("Matrix is not square")]
+    NotSquare,
     #[error("Problem with bounds: {0}")]
-    BoundsError(#[from] BoundsError),
+    BoundsError(#[from] IndexError),
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
