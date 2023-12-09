@@ -24,6 +24,14 @@ impl<T> Matrix<T>
 where
     T: Copy,
 {
+    pub fn empty() -> Self {
+        return Matrix {
+            data: vec![],
+            rows: 0,
+            columns: 0,
+        };
+    }
+
     /// Creates a new matrix with the specified rows and columns initialized to 0 or a sizing error.
     ///
     /// # Errors
@@ -79,7 +87,7 @@ where
         let len = data.len();
 
         if len == 0 && columns == 0 {
-            return Ok(Default::default());
+            return Ok(Matrix::empty());
         }
 
         if len == 0 {
@@ -110,7 +118,7 @@ where
         let rows = data.len();
 
         if rows == 0 {
-            return Ok(Default::default());
+            return Ok(Matrix::empty());
         }
 
         let columns = data[0].len();
@@ -391,10 +399,13 @@ where
 // operations
 impl<T> Matrix<T>
 where
-    T: Copy + Mul<Output = T>,
+    T: Copy,
 {
     /// Multiplies each element of the matrix by factor.
-    pub fn scale(&mut self, factor: T) {
+    pub fn scale(&mut self, factor: T)
+    where
+        T: Mul<Output = T>,
+    {
         for e in self.data.iter_mut() {
             *e = *e * factor
         }
@@ -405,7 +416,10 @@ where
     /// # Errors
     ///
     /// row must refer to a row that exists.
-    pub fn scale_row(&mut self, row: usize, factor: T) -> Option<usize> {
+    pub fn scale_row(&mut self, row: usize, factor: T) -> Option<usize>
+    where
+        T: Mul<Output = T>,
+    {
         for t in match self.get_mut_row(row) {
             Some(t) => t,
             None => return Some(row),
@@ -423,7 +437,7 @@ where
     /// source and target must refer to rows that exist.
     pub fn add_scaled_row(&mut self, source: usize, target: usize, factor: T) -> Option<usize>
     where
-        T: Add<Output = T>,
+        T: Add<Output = T> + Mul<Output = T>,
     {
         let source_clone = match self.get_row(source) {
             Some(t) => t,
@@ -452,7 +466,10 @@ where
     /// # Errors
     ///
     /// column must refer to a column that exists.
-    pub fn scale_column(&mut self, column: usize, factor: T) -> Option<usize> {
+    pub fn scale_column(&mut self, column: usize, factor: T) -> Option<usize>
+    where
+        T: Mul<Output = T>,
+    {
         for t in match self.get_mut_column(column) {
             Some(t) => t,
             None => return Some(column),
@@ -470,7 +487,7 @@ where
     /// source and target must refer to columns that exist.
     pub fn add_scaled_column(&mut self, source: usize, target: usize, factor: T) -> Option<usize>
     where
-        T: Add<Output = T>,
+        T: Add<Output = T> + Mul<Output = T>,
     {
         let source_clone = match self.get_column(source) {
             Some(t) => t,
@@ -586,7 +603,7 @@ where
         }
 
         if self.columns == 0 {
-            self.columns = 1;
+            self.columns = data.len();
         }
 
         None
@@ -618,7 +635,7 @@ where
         }
 
         if self.rows == 0 {
-            self.rows = 1;
+            self.rows = data.len();
         }
 
         None
@@ -1292,6 +1309,18 @@ mod tests {
 
     mod constructors {
         use super::*;
+
+        #[test]
+        fn empty() {
+            assert_eq!(
+                Matrix::<i16>::empty(),
+                Matrix {
+                    data: vec![],
+                    rows: 0,
+                    columns: 0
+                }
+            );
+        }
 
         mod new {
             use super::*;
